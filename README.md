@@ -58,7 +58,7 @@
 Откройте PowerShell и выполните:
 
 ```powershell
-irm https://raw.githubusercontent.com/<ВАШ_АККАУНТ>/antigravity-localizer/main/install-standalone.ps1 | iex
+irm https://raw.githubusercontent.com/ismailtu3455-prog/antigravity-localizer/main/install-standalone.ps1 | iex
 ```
 
 Установщик автоматически:
