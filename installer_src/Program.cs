@@ -204,13 +204,19 @@ namespace AntigravityLocalizer
                 Console.WriteLine("[*] Запуск Antigravity с новым интерфейсом...");
                 try
                 {
-                    Process.Start(new ProcessStartInfo
+                    ProcessStartInfo psi = new ProcessStartInfo
                     {
-                        FileName = exePath,
-                        UseShellExecute = true
-                    });
+                        FileName = "cmd.exe",
+                        Arguments = "/c start \"\" \"" + exePath + "\"",
+                        CreateNoWindow = true,
+                        UseShellExecute = false
+                    };
+                    Process.Start(psi);
                 }
-                catch { }
+                catch
+                {
+                    try { Process.Start(exePath); } catch { }
+                }
             }
 
             Console.WriteLine();
