@@ -39,7 +39,7 @@
 Откройте PowerShell и выполните:
 
 ```powershell
-irm https://raw.githubusercontent.com/<ВАШ_АККАУНТ>/antigravity-localizer/main/install-standalone.ps1 | iex
+irm https://raw.githubusercontent.com/ismailtu3455-prog/antigravity-localizer/main/install-standalone.ps1 | iex
 ```
 
 *(Скрипт полностью автономен, сам сделает бэкап, очистит кеш апдейтера и перезапустит Antigravity с флагом в верхнем баре).*
