@@ -1,5 +1,5 @@
 ﻿[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue'
 
 Write-Host "========================================================" -ForegroundColor Cyan
 Write-Host "   🚀 Antigravity Localizer - Автоматический Деплой" -ForegroundColor Cyan
@@ -26,17 +26,19 @@ if ($status) {
 }
 
 # 3. Проверяем remote origin
-$origin = (git remote get-url origin 2>$null)
+$allRemotes = git remote
+$origin = $null
+if ($allRemotes -and ($allRemotes -contains 'origin')) {
+    $origin = (git remote get-url origin).Trim()
+}
+
 if (-not $origin) {
     Write-Host ""
     Write-Host "🔗 Удаленный репозиторий еще не привязан!" -ForegroundColor Yellow
-    Write-Host "1. Откройте в браузере: https://github.com/new" -ForegroundColor White
-    Write-Host "2. Введите название репозитория (например: antigravity-localizer)" -ForegroundColor White
-    Write-Host "3. Нажмите кнопку [Create repository]" -ForegroundColor White
-    Write-Host "   (Не ставьте галочки Add README, .gitignore или License!)" -ForegroundColor DarkGray
-    Write-Host "4. Скопируйте ссылку на созданный репозиторий." -ForegroundColor White
+    Write-Host "1. Откройте в браузере страницу созданного репозитория на GitHub" -ForegroundColor White
+    Write-Host "2. Скопируйте ссылку (например: https://github.com/ВАШ_НИК/antigravity-localizer.git)" -ForegroundColor White
     Write-Host ""
-    $url = Read-Host "Вставьте ссылку на ваш GitHub репозиторий (например, https://github.com/USERNAME/antigravity-localizer.git)"
+    $url = Read-Host "Вставьте ссылку на ваш GitHub репозиторий"
     if ([string]::IsNullOrWhiteSpace($url)) {
         Write-Host "❌ Ссылка не указана. Деплой отменен." -ForegroundColor Red
         return
@@ -74,5 +76,8 @@ if ($LASTEXITCODE -eq 0) {
     }
     Write-Host "========================================================" -ForegroundColor DarkGray
 } else {
-    Write-Host "⚠️ Ошибка при выполнении git push. Проверьте права доступа к GitHub." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "⚠️ Ошибка при выполнении git push." -ForegroundColor Red
+    Write-Host "Если вы создали репозиторий с файлом README или лицензией на сайте," -ForegroundColor Yellow
+    Write-Host "выполните принудительную отправку командой: git push -f origin main" -ForegroundColor Yellow
 }
