@@ -93,6 +93,38 @@ const engineTemplate = `/**
           nodeFs.mkdirSync(dir, { recursive: true });
         }
         langFilePath = nodePath.join(dir, 'agent_ui_lang.txt');
+
+        // Dynamically load custom user-generated AI locales from ~/.gemini/custom_locales/
+        const customLocalesDir = nodePath.join(dir, 'custom_locales');
+        if (nodeFs.existsSync(customLocalesDir)) {
+          const files = nodeFs.readdirSync(customLocalesDir);
+          for (const f of files) {
+            if (f.endsWith('.json')) {
+              try {
+                const code = f.replace('.json', '').toLowerCase();
+                const jsonContent = JSON.parse(nodeFs.readFileSync(nodePath.join(customLocalesDir, f), 'utf8'));
+                if (jsonContent && jsonContent.name && jsonContent.exact) {
+                  LOCALES[code] = jsonContent;
+                  LANG_NAMES[code] = jsonContent.name;
+                  TOAST_MSGS[code] = '🌐 ' + jsonContent.name;
+                  FLAG_SVGS[code] = '<svg width="20" height="14" viewBox="0 0 20 14" style="border-radius:2px;box-shadow:0 0 1px rgba(0,0,0,0.6);display:block;pointer-events:none;"><rect width="20" height="14" fill="#3b82f6"/><text x="10" y="10" font-size="8" fill="#ffffff" text-anchor="middle" font-weight="bold">' + (code.slice(0, 2).toUpperCase()) + '</text></svg>';
+                  LOWER_MAPS[code] = {};
+                  for (const [k, v] of Object.entries(jsonContent.exact)) {
+                    LOWER_MAPS[code][k.toLowerCase()] = v;
+                    if (v && typeof v === 'string') {
+                      const trimmed = v.trim();
+                      REVERSE_MAP[trimmed] = k;
+                      REVERSE_MAP[trimmed.toLowerCase()] = k;
+                    }
+                  }
+                  console.log('[Agent-UI-Localizer] Loaded custom locale:', code, jsonContent.name);
+                }
+              } catch (e) {
+                console.warn('[Agent-UI-Localizer] Failed loading custom locale:', f, e);
+              }
+            }
+          }
+        }
       }
     } catch (_) {}
 
@@ -100,14 +132,14 @@ const engineTemplate = `/**
       try {
         if (nodeFs && langFilePath && nodeFs.existsSync(langFilePath)) {
           const content = nodeFs.readFileSync(langFilePath, 'utf8').trim();
-          if (content && ['ru', 'uk', 'kk', 'be', 'uz', 'en'].includes(content)) {
+          if (content && (['ru', 'uk', 'kk', 'be', 'uz', 'en'].includes(content) || LOCALES[content])) {
             return content;
           }
         }
       } catch (_) {}
       try {
         const stored = window.localStorage && window.localStorage.getItem('agent_ui_lang');
-        if (stored && ['ru', 'uk', 'kk', 'be', 'uz', 'en'].includes(stored)) {
+        if (stored && (['ru', 'uk', 'kk', 'be', 'uz', 'en'].includes(stored) || LOCALES[stored])) {
           return stored;
         }
       } catch (_) {}
