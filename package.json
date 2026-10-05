@@ -1,0 +1,29 @@
+{
+  "name": "agent-ui-localizer",
+  "version": "1.0.0",
+  "description": "Универсальный русификатор и мультиязычный локализатор интерфейса для Antigravity 2.0 (IDE/CLI) и Claude (Desktop/Code CLI)",
+  "main": "patcher.js",
+  "scripts": {
+    "patch:antigravity": "node patcher.js --app antigravity --install",
+    "unpatch:antigravity": "node patcher.js --app antigravity --restore",
+    "patch:claude-cli": "node claude-patcher.js --install",
+    "unpatch:claude-cli": "node claude-patcher.js --restore",
+    "patch:claude-desktop": "node patcher.js --app claude --install",
+    "unpatch:claude-desktop": "node patcher.js --app claude --restore",
+    "status": "node patcher.js --status"
+  },
+  "keywords": [
+    "antigravity",
+    "claude",
+    "localization",
+    "russian",
+    "translate",
+    "i18n",
+    "electron"
+  ],
+  "author": "Ismail",
+  "license": "MIT",
+  "devDependencies": {
+    "@electron/asar": "^4.3.1"
+  }
+}
