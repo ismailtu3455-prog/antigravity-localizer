@@ -5,10 +5,14 @@ const ukData = JSON.parse(fs.readFileSync('locales/uk.json', 'utf8'));
 const kkData = JSON.parse(fs.readFileSync('locales/kk.json', 'utf8'));
 const beData = JSON.parse(fs.readFileSync('locales/be.json', 'utf8'));
 const uzData = JSON.parse(fs.readFileSync('locales/uz.json', 'utf8'));
+const deData = JSON.parse(fs.readFileSync('locales/de.json', 'utf8'));
+const esData = JSON.parse(fs.readFileSync('locales/es.json', 'utf8'));
+const frData = JSON.parse(fs.readFileSync('locales/fr.json', 'utf8'));
+const trData = JSON.parse(fs.readFileSync('locales/tr.json', 'utf8'));
 
 // Pre-compute reverse translation map: from any translated string in any language back to original English
 const REVERSE_MAP = {};
-for (const locale of [ruData, ukData, kkData, beData, uzData]) {
+for (const locale of [ruData, ukData, kkData, beData, uzData, deData, esData, frData, trData]) {
   for (const [enKey, transVal] of Object.entries(locale.exact)) {
     if (transVal && typeof transVal === 'string') {
       const trimmed = transVal.trim();
@@ -34,27 +38,39 @@ const engineTemplate = `/**
       uk: ${JSON.stringify(ukData, null, 2)},
       kk: ${JSON.stringify(kkData, null, 2)},
       be: ${JSON.stringify(beData, null, 2)},
-      uz: ${JSON.stringify(uzData, null, 2)}
+      uz: ${JSON.stringify(uzData, null, 2)},
+      de: ${JSON.stringify(deData, null, 2)},
+      es: ${JSON.stringify(esData, null, 2)},
+      fr: ${JSON.stringify(frData, null, 2)},
+      tr: ${JSON.stringify(trData, null, 2)}
     };
 
     const REVERSE_MAP = ${JSON.stringify(REVERSE_MAP, null, 2)};
 
     const LANG_NAMES = {
       ru: 'Русский',
+      en: 'English',
+      de: 'Deutsch',
+      es: 'Español',
+      fr: 'Français',
+      tr: 'Türkçe',
       uk: 'Українська',
       kk: 'Қазақша',
       be: 'Беларуская',
-      uz: 'O\\'zbekcha',
-      en: 'English'
+      uz: 'O\'zbekcha'
     };
 
     const TOAST_MSGS = {
       ru: '🇷🇺 Язык интерфейса: Русский',
+      en: '🇬🇧 Interface language: English',
+      de: '🇩🇪 Oberflächensprache: Deutsch',
+      es: '🇪🇸 Idioma de la interfaz: Español',
+      fr: '🇫🇷 Langue de l\'interface: Français',
+      tr: '🇹🇷 Arayüz dili: Türkçe',
       uk: '🇺🇦 Мова інтерфейсу: Українська',
       kk: '🇰🇿 Интерфейс тілі: Қазақша',
       be: '🇧🇾 Мова інтэрфейсу: Беларуская',
-      uz: '🇺🇿 Interfeys tili: O\\'zbekcha',
-      en: '🇬🇧 Interface language: English'
+      uz: '🇺🇿 Interfeys tili: O\'zbekcha'
     };
 
     // Fast case-insensitive lookup maps for each locale
@@ -470,11 +486,15 @@ const engineTemplate = `/**
 
       const LANG_LIST = [
         { code: 'ru', name: 'Русский', native: 'Русский' },
+        { code: 'en', name: 'Английский', native: 'English' },
+        { code: 'de', name: 'Немецкий', native: 'Deutsch' },
+        { code: 'es', name: 'Испанский', native: 'Español' },
+        { code: 'fr', name: 'Французский', native: 'Français' },
+        { code: 'tr', name: 'Турецкий', native: 'Türkçe' },
         { code: 'uk', name: 'Украинский', native: 'Українська' },
         { code: 'kk', name: 'Казахский', native: 'Қазақша' },
         { code: 'be', name: 'Белорусский', native: 'Беларуская' },
-        { code: 'uz', name: 'Узбекский', native: 'O\\'zbekcha' },
-        { code: 'en', name: 'Английский', native: 'English' }
+        { code: 'uz', name: 'Узбекский', native: 'O\'zbekcha' }
       ];
 
       LANG_LIST.forEach(item => {
