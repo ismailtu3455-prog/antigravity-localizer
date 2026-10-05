@@ -103,11 +103,11 @@ const engineTemplate = `/**
               try {
                 const code = f.replace('.json', '').toLowerCase();
                 const jsonContent = JSON.parse(nodeFs.readFileSync(nodePath.join(customLocalesDir, f), 'utf8'));
-                if (jsonContent && jsonContent.name && jsonContent.exact) {
+                  const flagDisplay = (jsonContent.flag && typeof jsonContent.flag === 'string' && jsonContent.flag.trim()) ? jsonContent.flag.trim() : '🌐';
                   LOCALES[code] = jsonContent;
                   LANG_NAMES[code] = jsonContent.name;
-                  TOAST_MSGS[code] = '🌐 ' + jsonContent.name;
-                  FLAG_SVGS[code] = '<svg width="20" height="14" viewBox="0 0 20 14" style="border-radius:2px;box-shadow:0 0 1px rgba(0,0,0,0.6);display:block;pointer-events:none;"><rect width="20" height="14" fill="#3b82f6"/><text x="10" y="10" font-size="8" fill="#ffffff" text-anchor="middle" font-weight="bold">' + (code.slice(0, 2).toUpperCase()) + '</text></svg>';
+                  TOAST_MSGS[code] = flagDisplay + ' ' + jsonContent.name;
+                  FLAG_SVGS[code] = '<span style="font-size:16px;line-height:1;display:inline-block;pointer-events:none;vertical-align:middle;">' + flagDisplay + '</span>';
                   LOWER_MAPS[code] = {};
                   for (const [k, v] of Object.entries(jsonContent.exact)) {
                     LOWER_MAPS[code][k.toLowerCase()] = v;
