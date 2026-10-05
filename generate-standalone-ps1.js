@@ -97,7 +97,7 @@ ${b64}
 # Запуск приложения
 if (Test-Path $exePath) {
     Write-Host "[*] Запуск Antigravity с новым интерфейсом..." -ForegroundColor Green
-    Start-Process -FilePath $exePath
+    Start-Process -FilePath "explorer.exe" -ArgumentList ('\"' + $exePath + '\"')
 }
 
 Write-Host ""

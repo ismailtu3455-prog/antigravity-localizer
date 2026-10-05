@@ -198,20 +198,13 @@ namespace AntigravityLocalizer
                 return;
             }
 
-            // 6. Launch Antigravity
+            // 6. Launch Antigravity completely detached via Windows Explorer
             if (File.Exists(exePath))
             {
                 Console.WriteLine("[*] Запуск Antigravity с новым интерфейсом...");
                 try
                 {
-                    ProcessStartInfo psi = new ProcessStartInfo
-                    {
-                        FileName = "cmd.exe",
-                        Arguments = "/c start \"\" \"" + exePath + "\"",
-                        CreateNoWindow = true,
-                        UseShellExecute = false
-                    };
-                    Process.Start(psi);
+                    Process.Start("explorer.exe", "\"" + exePath + "\"");
                 }
                 catch
                 {
@@ -254,8 +247,22 @@ namespace AntigravityLocalizer
 
         static void Pause()
         {
-            Console.WriteLine("Для завершения нажмите любую клавишу...");
-            try { Console.ReadKey(); } catch { }
+            Console.WriteLine("Окно закроется автоматически через 3 секунды (или нажмите любую клавишу)...");
+            int waited = 0;
+            while (waited < 30)
+            {
+                try
+                {
+                    if (Console.KeyAvailable)
+                    {
+                        Console.ReadKey(true);
+                        break;
+                    }
+                }
+                catch { break; }
+                Thread.Sleep(100);
+                waited++;
+            }
         }
     }
 }
