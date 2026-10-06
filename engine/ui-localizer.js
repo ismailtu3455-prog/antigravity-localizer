@@ -7881,14 +7881,18 @@
     // Node persistent disk storage resolution
     let nodeFs = null;
     let nodePath = null;
+    let nodeOs = null;
+    let nodeChildProcess = null;
     let storageDirs = [];
 
     try {
       if (typeof require === 'function') {
         nodeFs = require('fs');
         nodePath = require('path');
-        const os = require('os');
-        const home = os.homedir ? os.homedir() : (process.env.USERPROFILE || process.env.HOME || '');
+        try { nodeOs = require('os'); } catch (_) {}
+        try { nodeChildProcess = require('child_process'); } catch (_) {}
+        const os = nodeOs;
+        const home = os && os.homedir ? os.homedir() : (process.env.USERPROFILE || process.env.HOME || '');
         if (home) {
           storageDirs.push(nodePath.join(home, '.gemini'));
         }
@@ -8470,6 +8474,22 @@
     }
 
     // ================= NATIVE INTEGRATED TOKENS HUD =================
+    const EMBEDDED_TOKEN_STATS_PY = "#!/usr/bin/env python3\r\n\"\"\"\r\nAntigravity Tokens & Quota Extractor\r\nExtracts exact token statistics per conversation directly from local SQLite databases.\r\n\"\"\"\r\n\r\nimport os\r\nimport sys\r\nimport glob\r\nimport time\r\nimport json\r\nimport sqlite3\r\nimport argparse\r\nfrom datetime import datetime, timezone\r\n\r\nCONVERSATIONS_DIR = os.path.expanduser(\"~/.gemini/antigravity/conversations\")\r\n\r\ndef decode_varint(data, offset):\r\n    res = 0\r\n    shift = 0\r\n    while True:\r\n        if offset >= len(data):\r\n            break\r\n        b = data[offset]\r\n        offset += 1\r\n        res |= (b & 0x7f) << shift\r\n        if not (b & 0x80):\r\n            break\r\n        shift += 7\r\n    return res, offset\r\n\r\ndef parse_proto(data, offset=0, end=None):\r\n    if end is None:\r\n        end = len(data)\r\n    fields = []\r\n    while offset < end:\r\n        tag, offset = decode_varint(data, offset)\r\n        field_num = tag >> 3\r\n        wire_type = tag & 7\r\n        if wire_type == 0:\r\n            val, offset = decode_varint(data, offset)\r\n            fields.append((field_num, \"varint\", val))\r\n        elif wire_type == 2:\r\n            length, offset = decode_varint(data, offset)\r\n            val = data[offset:offset+length]\r\n            offset += length\r\n            fields.append((field_num, \"bytes\", val))\r\n        elif wire_type == 1:\r\n            val = data[offset:offset+8]\r\n            offset += 8\r\n            fields.append((field_num, \"fixed64\", val))\r\n        elif wire_type == 5:\r\n            val = data[offset:offset+4]\r\n            offset += 4\r\n            fields.append((field_num, \"fixed32\", val))\r\n        else:\r\n            break\r\n    return fields\r\n\r\ndef collect_metrics(current_conv_id=None):\r\n    now_ts = int(time.time())\r\n    db_files = glob.glob(os.path.join(CONVERSATIONS_DIR, \"*.db\"))\r\n    db_files.sort(key=os.path.getmtime, reverse=True)\r\n    \r\n    if not current_conv_id and db_files:\r\n        current_conv_id = os.path.basename(db_files[0]).replace(\".db\", \"\")\r\n\r\n    all_records = []\r\n    current_session = None\r\n    latest_ts = 0\r\n    cutoff_ts = now_ts - (8 * 86400)\r\n\r\n    for db_path in db_files:\r\n        sess_id = os.path.basename(db_path).replace(\".db\", \"\")\r\n        if sess_id != current_conv_id:\r\n            try:\r\n                if os.path.getmtime(db_path) < cutoff_ts:\r\n                    continue\r\n            except OSError:\r\n                pass\r\n        try:\r\n            conn = sqlite3.connect(f\"file:{db_path}?mode=ro\", uri=True, timeout=1.0)\r\n            c = conn.cursor()\r\n            \r\n            step_times = {}\r\n            try:\r\n                c.execute(\"SELECT idx, metadata FROM steps WHERE metadata IS NOT NULL\")\r\n                for idx, meta in c.fetchall():\r\n                    for fn, wt, val in parse_proto(meta):\r\n                        if fn == 1:\r\n                            for sfn, swt, sval in parse_proto(val):\r\n                                if sfn == 1:\r\n                                    step_times[idx] = sval\r\n            except Exception:\r\n                pass\r\n            \r\n            try:\r\n                c.execute(\"SELECT idx, data FROM gen_metadata ORDER BY idx ASC\")\r\n                for idx, data in c.fetchall():\r\n                    ts = step_times.get(idx, 0)\r\n                    if ts > latest_ts:\r\n                        latest_ts = ts\r\n                    proto = parse_proto(data)\r\n                    for fn, wt, val in proto:\r\n                        if fn == 1:\r\n                            for sfn, swt, sval in parse_proto(val):\r\n                                if sfn == 17:\r\n                                    for tfn, twt, tval in parse_proto(sval):\r\n                                        if twt == \"bytes\":\r\n                                            sub = parse_proto(tval)\r\n                                            d = {k: v for k, t, v in sub if t == \"varint\"}\r\n                                            if d and (d.get(2, 0) > 0 or d.get(5, 0) > 0 or d.get(3, 0) > 0):\r\n                                                rec = {\r\n                                                    \"session_id\": sess_id,\r\n                                                    \"idx\": idx,\r\n                                                    \"timestamp\": ts,\r\n                                                    \"prompt_tokens\": d.get(2, 0),\r\n                                                    \"output_tokens\": d.get(3, 0),\r\n                                                    \"cached_tokens\": d.get(5, 0),\r\n                                                    \"thinking_tokens\": d.get(9, 0),\r\n                                                    \"text_tokens\": d.get(10, 0),\r\n                                                    \"context_size\": d.get(5, 0) + d.get(2, 0)\r\n                                                }\r\n                                                all_records.append(rec)\r\n                                                if sess_id == current_conv_id:\r\n                                                    current_session = rec\r\n            except Exception:\r\n                pass\r\n            conn.close()\r\n        except Exception:\r\n            pass\r\n\r\n    ref_ts = latest_ts if latest_ts > 0 else now_ts\r\n    h5_ts = ref_ts - (5 * 3600)\r\n    w1_ts = ref_ts - (7 * 86400)\r\n\r\n    h5_records = [r for r in all_records if r[\"timestamp\"] >= h5_ts]\r\n    w1_records = [r for r in all_records if r[\"timestamp\"] >= w1_ts]\r\n\r\n    max_context = 1000000\r\n    sessions_map = {}\r\n    for r in all_records:\r\n        sid = r[\"session_id\"]\r\n        ctx = r[\"context_size\"]\r\n        sessions_map[sid] = {\r\n            \"session_id\": sid,\r\n            \"context_size\": ctx,\r\n            \"max_context\": max_context,\r\n            \"context_percent\": round((ctx / max_context) * 100, 2),\r\n            \"cached_tokens\": r[\"cached_tokens\"],\r\n            \"prompt_tokens\": r[\"prompt_tokens\"],\r\n            \"output_tokens\": r[\"output_tokens\"],\r\n            \"thinking_tokens\": r[\"thinking_tokens\"],\r\n            \"text_tokens\": r[\"text_tokens\"],\r\n        }\r\n\r\n    current_session = sessions_map.get(current_conv_id)\r\n    current_context = current_session[\"context_size\"] if current_session else 0\r\n    current_cached = current_session[\"cached_tokens\"] if current_session else 0\r\n    current_prompt = current_session[\"prompt_tokens\"] if current_session else 0\r\n    current_output = current_session[\"output_tokens\"] if current_session else 0\r\n    current_thinking = current_session[\"thinking_tokens\"] if current_session else 0\r\n    current_text = current_session[\"text_tokens\"] if current_session else 0\r\n\r\n    return {\r\n        \"current_session\": {\r\n            \"session_id\": current_conv_id,\r\n            \"context_size\": current_context,\r\n            \"max_context\": max_context,\r\n            \"context_percent\": round((current_context / max_context) * 100, 2),\r\n            \"cached_tokens\": current_cached,\r\n            \"prompt_tokens\": current_prompt,\r\n            \"output_tokens\": current_output,\r\n            \"thinking_tokens\": current_thinking,\r\n            \"text_tokens\": current_text,\r\n        },\r\n        \"sessions\": sessions_map,\r\n        \"usage_5h\": {\r\n            \"window_hours\": 5,\r\n            \"total_requests\": len(h5_records),\r\n            \"input_tokens\": sum(r[\"prompt_tokens\"] for r in h5_records),\r\n            \"output_tokens\": sum(r[\"output_tokens\"] for r in h5_records),\r\n            \"thinking_tokens\": sum(r[\"thinking_tokens\"] for r in h5_records),\r\n            \"total_tokens\": sum(r[\"prompt_tokens\"] + r[\"output_tokens\"] for r in h5_records),\r\n        },\r\n        \"usage_weekly\": {\r\n            \"window_days\": 7,\r\n            \"total_requests\": len(w1_records),\r\n            \"input_tokens\": sum(r[\"prompt_tokens\"] for r in w1_records),\r\n            \"output_tokens\": sum(r[\"output_tokens\"] for r in w1_records),\r\n            \"thinking_tokens\": sum(r[\"thinking_tokens\"] for r in w1_records),\r\n            \"total_tokens\": sum(r[\"prompt_tokens\"] + r[\"output_tokens\"] for r in w1_records),\r\n        },\r\n        \"updated_at\": datetime.now(timezone.utc).isoformat()\r\n    }\r\n\r\nif __name__ == \"__main__\":\r\n    parser = argparse.ArgumentParser(description=\"Antigravity Tokens Extractor\")\r\n    parser.add_argument(\"--json\", action=\"store_true\", help=\"Output JSON format\")\r\n    parser.add_argument(\"--session\", type=str, default=None, help=\"Specific session ID\")\r\n    args = parser.parse_args()\r\n\r\n    metrics = collect_metrics(args.session)\r\n    if args.json:\r\n        print(json.dumps(metrics, indent=2))\r\n    else:\r\n        print(json.dumps(metrics))\r\n";
+    let lastTokenData = null;
+    let isFetchingTokens = false;
+    let lastTokenFetchTime = 0;
+
+    // Load initial token stats synchronously from ~/.gemini/token_stats.json if available
+    try {
+      if (nodeFs && nodePath) {
+        const homeDir = (nodeOs && nodeOs.homedir) ? nodeOs.homedir() : (process.env.USERPROFILE || process.env.HOME || '');
+        const cacheFile = nodePath.join(homeDir, '.gemini', 'token_stats.json');
+        if (nodeFs.existsSync(cacheFile)) {
+          lastTokenData = JSON.parse(nodeFs.readFileSync(cacheFile, 'utf8'));
+        }
+      }
+    } catch (_) {}
+
     function isHudEnabled() {
       try {
         if (nodeFs && nodePath) {
@@ -8561,6 +8581,124 @@
       return 'Gemini 3.7 Flash';
     }
 
+    function getMaxContextForModel(modelName) {
+      const m = (modelName || '').toLowerCase();
+      if (m.includes('claude')) return 200000;
+      if (m.includes('gpt-4o') || m.includes('gpt-4')) return 128000;
+      return 1000000;
+    }
+
+    function findTokenStatsScript() {
+      try {
+        if (!nodeFs || !nodePath) return null;
+        const homeDir = (nodeOs && nodeOs.homedir) ? nodeOs.homedir() : (process.env.USERPROFILE || process.env.HOME || '');
+        const candidates = [
+          nodePath.join(process.resourcesPath || '', 'token_stats.py'),
+          nodePath.join(__dirname || '', 'token_stats.py'),
+          nodePath.join(homeDir, '.gemini', 'token_stats.py'),
+          nodePath.join(homeDir, '.antigravity-tokens-hud', 'token_stats.py'),
+          'C:\\Users\\ismai\\AppData\\Local\\Programs\\antigravity\\resources\\token_stats.py',
+          'C:\\Users\\ismai\\.gemini\\token_stats.py'
+        ];
+        for (const p of candidates) {
+          if (p && nodeFs.existsSync(p)) return p;
+        }
+        if (homeDir && EMBEDDED_TOKEN_STATS_PY) {
+          const autoPath = nodePath.join(homeDir, '.gemini', 'token_stats.py');
+          try {
+            nodeFs.writeFileSync(autoPath, EMBEDDED_TOKEN_STATS_PY, 'utf8');
+            return autoPath;
+          } catch (_) {}
+        }
+      } catch (_) {}
+      return null;
+    }
+
+    function runTokenStatsScript(scriptPath, args, callback) {
+      if (!nodeChildProcess) {
+        callback(new Error('child_process unavailable'), null);
+        return;
+      }
+      const binaries = process.platform === 'win32'
+        ? ['python', 'py', 'python3', nodePath.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WindowsApps', 'python.exe')]
+        : ['python3', 'python'];
+      let idx = 0;
+
+      function tryNext() {
+        if (idx >= binaries.length) {
+          callback(new Error('Python not found'), null);
+          return;
+        }
+        const bin = binaries[idx++];
+        const env = { ...process.env };
+        if (process.platform !== 'win32') {
+          env.PATH = ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin', process.env.PATH || ''].join(':');
+        }
+        try {
+          nodeChildProcess.execFile(bin, [scriptPath, ...args], { windowsHide: true, timeout: 6000, env }, (err, stdout) => {
+            if (err && (err.code === 'ENOENT' || !stdout)) {
+              tryNext();
+            } else {
+              callback(err, stdout);
+            }
+          });
+        } catch (_) {
+          tryNext();
+        }
+      }
+
+      tryNext();
+    }
+
+    function refreshTokenStats(force = false) {
+      const now = Date.now();
+      if (!force && isFetchingTokens) return;
+      if (!force && (now - lastTokenFetchTime < 2500)) return;
+
+      isFetchingTokens = true;
+      lastTokenFetchTime = now;
+
+      try {
+        const scriptPath = findTokenStatsScript();
+        if (!scriptPath) {
+          isFetchingTokens = false;
+          return;
+        }
+
+        const activeId = getActiveConvId();
+        const args = ['--json'];
+        if (activeId) {
+          args.push('--session', activeId);
+        }
+
+        runTokenStatsScript(scriptPath, args, (err, stdout) => {
+          isFetchingTokens = false;
+          if (err || !stdout) return;
+          try {
+            const parsed = JSON.parse(stdout);
+            if (parsed && (parsed.current_session || parsed.sessions)) {
+              lastTokenData = parsed;
+              window.__AGY_DATA__ = parsed;
+
+              try {
+                if (nodeFs && nodePath) {
+                  const homeDir = (nodeOs && nodeOs.homedir) ? nodeOs.homedir() : (process.env.USERPROFILE || process.env.HOME || '');
+                  const cacheFile = nodePath.join(homeDir, '.gemini', 'token_stats.json');
+                  nodeFs.writeFileSync(cacheFile, JSON.stringify(parsed), 'utf8');
+                }
+              } catch (_) {}
+
+              if (typeof window.__AGY_RENDER_TOKENS_HUD__ === 'function') {
+                window.__AGY_RENDER_TOKENS_HUD__();
+              }
+            }
+          } catch (_) {}
+        });
+      } catch (_) {
+        isFetchingTokens = false;
+      }
+    }
+
     async function fetchOfficialQuotas() {
       try {
         const btns = document.querySelectorAll('button');
@@ -8628,7 +8766,7 @@
             line-height: 1.35 !important;
             color: rgba(255, 255, 255, 0.85) !important;
             user-select: none !important;
-            cursor: default !important;
+            cursor: pointer !important;
             transition: border-color 0.2s ease, background 0.2s ease !important;
             box-sizing: border-box !important;
           `;
@@ -8645,9 +8783,52 @@
           settingsBtn.parentElement.insertBefore(container, settingsBtn);
         }
 
+        container.onclick = (e) => {
+          e.stopPropagation();
+          refreshTokenStats(true);
+        };
+
+        const activeId = getActiveConvId();
         const modelName = getActiveModelName();
         const quotaData = await fetchOfficialQuotas();
         const labels = HUD_LABELS[currentLang] || HUD_LABELS.ru;
+
+        // Context token metrics
+        let session = null;
+        const data = lastTokenData || window.__AGY_DATA__;
+        if (data) {
+          if (data.sessions && activeId && data.sessions[activeId]) {
+            session = data.sessions[activeId];
+          } else if (activeId && data.current_session && data.current_session.session_id === activeId) {
+            session = data.current_session;
+          } else if (!activeId && data.current_session) {
+            session = data.current_session;
+          } else if (data.sessions) {
+            const sKeys = Object.keys(data.sessions);
+            if (sKeys.length > 0) {
+              session = data.sessions[sKeys[0]];
+            }
+          }
+        }
+
+        if (!session) {
+          session = {
+            session_id: activeId || 'new',
+            context_size: 0,
+            max_context: getMaxContextForModel(modelName),
+            context_percent: 0.0,
+            cached_tokens: 0,
+            prompt_tokens: 0
+          };
+        }
+
+        const ctxSize = session.context_size || 0;
+        const maxCtx = session.max_context || getMaxContextForModel(modelName);
+        const ctxPct = (session.context_percent != null) ? session.context_percent : ((ctxSize / maxCtx) * 100);
+        const ctxBarWidth = Math.min(100, Math.max(0, ctxPct));
+        const ctxK = fmtK(ctxSize);
+        const maxK = maxCtx >= 1000000 ? (maxCtx / 1000000).toFixed(0) + 'M' : fmtK(maxCtx);
+        const ctxColor = ctxPct > 75 ? '#ef4444' : (ctxPct > 45 ? '#f59e0b' : '#10b981');
 
         let fiveHourPct = 100;
         let fiveHourReset = '';
@@ -8672,21 +8853,27 @@
           }
         }
 
+        const tipCtx = `${labels.ctx}: ${ctxPct.toFixed(1)}% (${ctxK} / ${maxK} токенов)`;
         const tip5h = `${labels.tip5h}: ${fiveHourPct}%${fiveHourReset ? ` (${labels.reset} ${fiveHourReset})` : ''}`;
         const tipWk = `${labels.tipWk}: ${weeklyPct}%${weeklyReset ? ` (${labels.reset} ${weeklyReset})` : ''}`;
-        container.title = `${tip5h}\n${tipWk}`;
+        container.title = `${tipCtx}\n${tip5h}\n${tipWk}\n(Нажмите для мгновенного обновления)`;
 
         const fiveHourColor = fiveHourPct > 35 ? '#10b981' : (fiveHourPct > 15 ? '#f59e0b' : '#ef4444');
         const weeklyColor = weeklyPct > 35 ? '#3b82f6' : (weeklyPct > 15 ? '#f59e0b' : '#ef4444');
 
         container.innerHTML = `
+          <!-- 1. Model & Context Length -->
           <div style="margin-bottom: 6px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
               <span style="font-weight: 600; color: #f1f5f9; font-size: 10.5px;">${modelName}</span>
-              <span style="font-size: 9.5px; color: #10b981; font-weight: 600;">ACTIVE</span>
+              <span style="font-size: 9.5px; color: ${ctxColor}; font-weight: 600;">${ctxPct.toFixed(1)}% <span style="font-weight: 400; color: #94a3b8;">(${ctxK}/${maxK})</span></span>
+            </div>
+            <div style="background: rgba(255,255,255,0.08); height: 4px; border-radius: 2px; overflow: hidden;">
+              <div style="background: ${ctxColor}; width: ${ctxBarWidth}%; height: 100%; transition: width 0.3s ease;"></div>
             </div>
           </div>
 
+          <!-- 2. 5-Hour Limit Remaining -->
           <div style="margin-bottom: 5px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
               <span style="font-weight: 500; color: #94a3b8; font-size: 10px;">${labels.h5}</span>
@@ -8697,6 +8884,7 @@
             </div>
           </div>
 
+          <!-- 3. Weekly Limit Remaining -->
           <div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
               <span style="font-weight: 500; color: #94a3b8; font-size: 10px;">${labels.weekly}</span>
@@ -8728,6 +8916,7 @@
 
     function setup() {
       try {
+        refreshTokenStats(true);
         const root = document.documentElement || document.body || document;
         if (root) {
           observer.observe(root, {
@@ -8760,6 +8949,7 @@
       if (document.body) {
         walkAndTranslate(document.body);
         injectLanguageSwitcher();
+        refreshTokenStats(true);
         if (typeof window.__AGY_RENDER_TOKENS_HUD__ === 'function') {
           window.__AGY_RENDER_TOKENS_HUD__();
         }
@@ -8768,10 +8958,31 @@
 
     setInterval(function() {
       injectLanguageSwitcher();
+      refreshTokenStats(false);
       if (typeof window.__AGY_RENDER_TOKENS_HUD__ === 'function') {
         window.__AGY_RENDER_TOKENS_HUD__();
       }
     }, 2000);
+
+    let lastKnownConvId = null;
+    setInterval(function() {
+      const cid = getActiveConvId();
+      if (cid && cid !== lastKnownConvId) {
+        lastKnownConvId = cid;
+        refreshTokenStats(true);
+      }
+    }, 1000);
+
+    if (window.__TSR_ROUTER__ && typeof window.__TSR_ROUTER__.subscribe === 'function') {
+      try {
+        window.__TSR_ROUTER__.subscribe(() => {
+          refreshTokenStats(true);
+          if (typeof window.__AGY_RENDER_TOKENS_HUD__ === 'function') {
+            window.__AGY_RENDER_TOKENS_HUD__();
+          }
+        });
+      } catch (_) {}
+    }
 
     console.log('[Agent-UI-Localizer] Multi-language engine & Native Tokens HUD initialized successfully.');
   } catch (globalErr) {

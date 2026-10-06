@@ -185,6 +185,22 @@ namespace AntigravityLocalizer
                     }
                 }
 
+                // Ensure token_stats.py exists in resources and ~/.gemini
+                try
+                {
+                    string baseStats = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "token_stats.py");
+                    string resStats = Path.Combine(resourcesDir, "token_stats.py");
+                    string geminiDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gemini");
+                    string geminiStats = Path.Combine(geminiDir, "token_stats.py");
+                    if (File.Exists(baseStats))
+                    {
+                        File.Copy(baseStats, resStats, true);
+                        if (!Directory.Exists(geminiDir)) Directory.CreateDirectory(geminiDir);
+                        File.Copy(baseStats, geminiStats, true);
+                    }
+                }
+                catch { }
+
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("[УСПЕХ] Локализатор успешно установлен в Antigravity!");
                 Console.ResetColor();

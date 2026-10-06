@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
+const tokenStatsPyContent = fs.readFileSync('token_stats.py', 'utf8');
 const ruData = JSON.parse(fs.readFileSync('locales/ru.json', 'utf8'));
 const ukData = JSON.parse(fs.readFileSync('locales/uk.json', 'utf8'));
 const kkData = JSON.parse(fs.readFileSync('locales/kk.json', 'utf8'));
@@ -104,14 +105,18 @@ const engineTemplate = `/**
     // Node persistent disk storage resolution
     let nodeFs = null;
     let nodePath = null;
+    let nodeOs = null;
+    let nodeChildProcess = null;
     let storageDirs = [];
 
     try {
       if (typeof require === 'function') {
         nodeFs = require('fs');
         nodePath = require('path');
-        const os = require('os');
-        const home = os.homedir ? os.homedir() : (process.env.USERPROFILE || process.env.HOME || '');
+        try { nodeOs = require('os'); } catch (_) {}
+        try { nodeChildProcess = require('child_process'); } catch (_) {}
+        const os = nodeOs;
+        const home = os && os.homedir ? os.homedir() : (process.env.USERPROFILE || process.env.HOME || '');
         if (home) {
           storageDirs.push(nodePath.join(home, '.gemini'));
         }
@@ -693,6 +698,22 @@ const engineTemplate = `/**
     }
 
     // ================= NATIVE INTEGRATED TOKENS HUD =================
+    const EMBEDDED_TOKEN_STATS_PY = ${JSON.stringify(tokenStatsPyContent)};
+    let lastTokenData = null;
+    let isFetchingTokens = false;
+    let lastTokenFetchTime = 0;
+
+    // Load initial token stats synchronously from ~/.gemini/token_stats.json if available
+    try {
+      if (nodeFs && nodePath) {
+        const homeDir = (nodeOs && nodeOs.homedir) ? nodeOs.homedir() : (process.env.USERPROFILE || process.env.HOME || '');
+        const cacheFile = nodePath.join(homeDir, '.gemini', 'token_stats.json');
+        if (nodeFs.existsSync(cacheFile)) {
+          lastTokenData = JSON.parse(nodeFs.readFileSync(cacheFile, 'utf8'));
+        }
+      }
+    } catch (_) {}
+
     function isHudEnabled() {
       try {
         if (nodeFs && nodePath) {
@@ -784,6 +805,124 @@ const engineTemplate = `/**
       return 'Gemini 3.7 Flash';
     }
 
+    function getMaxContextForModel(modelName) {
+      const m = (modelName || '').toLowerCase();
+      if (m.includes('claude')) return 200000;
+      if (m.includes('gpt-4o') || m.includes('gpt-4')) return 128000;
+      return 1000000;
+    }
+
+    function findTokenStatsScript() {
+      try {
+        if (!nodeFs || !nodePath) return null;
+        const homeDir = (nodeOs && nodeOs.homedir) ? nodeOs.homedir() : (process.env.USERPROFILE || process.env.HOME || '');
+        const candidates = [
+          nodePath.join(process.resourcesPath || '', 'token_stats.py'),
+          nodePath.join(__dirname || '', 'token_stats.py'),
+          nodePath.join(homeDir, '.gemini', 'token_stats.py'),
+          nodePath.join(homeDir, '.antigravity-tokens-hud', 'token_stats.py'),
+          'C:\\\\Users\\\\ismai\\\\AppData\\\\Local\\\\Programs\\\\antigravity\\\\resources\\\\token_stats.py',
+          'C:\\\\Users\\\\ismai\\\\.gemini\\\\token_stats.py'
+        ];
+        for (const p of candidates) {
+          if (p && nodeFs.existsSync(p)) return p;
+        }
+        if (homeDir && EMBEDDED_TOKEN_STATS_PY) {
+          const autoPath = nodePath.join(homeDir, '.gemini', 'token_stats.py');
+          try {
+            nodeFs.writeFileSync(autoPath, EMBEDDED_TOKEN_STATS_PY, 'utf8');
+            return autoPath;
+          } catch (_) {}
+        }
+      } catch (_) {}
+      return null;
+    }
+
+    function runTokenStatsScript(scriptPath, args, callback) {
+      if (!nodeChildProcess) {
+        callback(new Error('child_process unavailable'), null);
+        return;
+      }
+      const binaries = process.platform === 'win32'
+        ? ['python', 'py', 'python3', nodePath.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WindowsApps', 'python.exe')]
+        : ['python3', 'python'];
+      let idx = 0;
+
+      function tryNext() {
+        if (idx >= binaries.length) {
+          callback(new Error('Python not found'), null);
+          return;
+        }
+        const bin = binaries[idx++];
+        const env = { ...process.env };
+        if (process.platform !== 'win32') {
+          env.PATH = ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin', process.env.PATH || ''].join(':');
+        }
+        try {
+          nodeChildProcess.execFile(bin, [scriptPath, ...args], { windowsHide: true, timeout: 6000, env }, (err, stdout) => {
+            if (err && (err.code === 'ENOENT' || !stdout)) {
+              tryNext();
+            } else {
+              callback(err, stdout);
+            }
+          });
+        } catch (_) {
+          tryNext();
+        }
+      }
+
+      tryNext();
+    }
+
+    function refreshTokenStats(force = false) {
+      const now = Date.now();
+      if (!force && isFetchingTokens) return;
+      if (!force && (now - lastTokenFetchTime < 2500)) return;
+
+      isFetchingTokens = true;
+      lastTokenFetchTime = now;
+
+      try {
+        const scriptPath = findTokenStatsScript();
+        if (!scriptPath) {
+          isFetchingTokens = false;
+          return;
+        }
+
+        const activeId = getActiveConvId();
+        const args = ['--json'];
+        if (activeId) {
+          args.push('--session', activeId);
+        }
+
+        runTokenStatsScript(scriptPath, args, (err, stdout) => {
+          isFetchingTokens = false;
+          if (err || !stdout) return;
+          try {
+            const parsed = JSON.parse(stdout);
+            if (parsed && (parsed.current_session || parsed.sessions)) {
+              lastTokenData = parsed;
+              window.__AGY_DATA__ = parsed;
+
+              try {
+                if (nodeFs && nodePath) {
+                  const homeDir = (nodeOs && nodeOs.homedir) ? nodeOs.homedir() : (process.env.USERPROFILE || process.env.HOME || '');
+                  const cacheFile = nodePath.join(homeDir, '.gemini', 'token_stats.json');
+                  nodeFs.writeFileSync(cacheFile, JSON.stringify(parsed), 'utf8');
+                }
+              } catch (_) {}
+
+              if (typeof window.__AGY_RENDER_TOKENS_HUD__ === 'function') {
+                window.__AGY_RENDER_TOKENS_HUD__();
+              }
+            }
+          } catch (_) {}
+        });
+      } catch (_) {
+        isFetchingTokens = false;
+      }
+    }
+
     async function fetchOfficialQuotas() {
       try {
         const btns = document.querySelectorAll('button');
@@ -851,7 +990,7 @@ const engineTemplate = `/**
             line-height: 1.35 !important;
             color: rgba(255, 255, 255, 0.85) !important;
             user-select: none !important;
-            cursor: default !important;
+            cursor: pointer !important;
             transition: border-color 0.2s ease, background 0.2s ease !important;
             box-sizing: border-box !important;
           \`;
@@ -868,9 +1007,52 @@ const engineTemplate = `/**
           settingsBtn.parentElement.insertBefore(container, settingsBtn);
         }
 
+        container.onclick = (e) => {
+          e.stopPropagation();
+          refreshTokenStats(true);
+        };
+
+        const activeId = getActiveConvId();
         const modelName = getActiveModelName();
         const quotaData = await fetchOfficialQuotas();
         const labels = HUD_LABELS[currentLang] || HUD_LABELS.ru;
+
+        // Context token metrics
+        let session = null;
+        const data = lastTokenData || window.__AGY_DATA__;
+        if (data) {
+          if (data.sessions && activeId && data.sessions[activeId]) {
+            session = data.sessions[activeId];
+          } else if (activeId && data.current_session && data.current_session.session_id === activeId) {
+            session = data.current_session;
+          } else if (!activeId && data.current_session) {
+            session = data.current_session;
+          } else if (data.sessions) {
+            const sKeys = Object.keys(data.sessions);
+            if (sKeys.length > 0) {
+              session = data.sessions[sKeys[0]];
+            }
+          }
+        }
+
+        if (!session) {
+          session = {
+            session_id: activeId || 'new',
+            context_size: 0,
+            max_context: getMaxContextForModel(modelName),
+            context_percent: 0.0,
+            cached_tokens: 0,
+            prompt_tokens: 0
+          };
+        }
+
+        const ctxSize = session.context_size || 0;
+        const maxCtx = session.max_context || getMaxContextForModel(modelName);
+        const ctxPct = (session.context_percent != null) ? session.context_percent : ((ctxSize / maxCtx) * 100);
+        const ctxBarWidth = Math.min(100, Math.max(0, ctxPct));
+        const ctxK = fmtK(ctxSize);
+        const maxK = maxCtx >= 1000000 ? (maxCtx / 1000000).toFixed(0) + 'M' : fmtK(maxCtx);
+        const ctxColor = ctxPct > 75 ? '#ef4444' : (ctxPct > 45 ? '#f59e0b' : '#10b981');
 
         let fiveHourPct = 100;
         let fiveHourReset = '';
@@ -895,21 +1077,27 @@ const engineTemplate = `/**
           }
         }
 
+        const tipCtx = \`\${labels.ctx}: \${ctxPct.toFixed(1)}% (\${ctxK} / \${maxK} токенов)\`;
         const tip5h = \`\${labels.tip5h}: \${fiveHourPct}%\${fiveHourReset ? \` (\${labels.reset} \${fiveHourReset})\` : ''}\`;
         const tipWk = \`\${labels.tipWk}: \${weeklyPct}%\${weeklyReset ? \` (\${labels.reset} \${weeklyReset})\` : ''}\`;
-        container.title = \`\${tip5h}\\n\${tipWk}\`;
+        container.title = \`\${tipCtx}\\n\${tip5h}\\n\${tipWk}\\n(Нажмите для мгновенного обновления)\`;
 
         const fiveHourColor = fiveHourPct > 35 ? '#10b981' : (fiveHourPct > 15 ? '#f59e0b' : '#ef4444');
         const weeklyColor = weeklyPct > 35 ? '#3b82f6' : (weeklyPct > 15 ? '#f59e0b' : '#ef4444');
 
         container.innerHTML = \`
+          <!-- 1. Model & Context Length -->
           <div style="margin-bottom: 6px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
               <span style="font-weight: 600; color: #f1f5f9; font-size: 10.5px;">\${modelName}</span>
-              <span style="font-size: 9.5px; color: #10b981; font-weight: 600;">ACTIVE</span>
+              <span style="font-size: 9.5px; color: \${ctxColor}; font-weight: 600;">\${ctxPct.toFixed(1)}% <span style="font-weight: 400; color: #94a3b8;">(\${ctxK}/\${maxK})</span></span>
+            </div>
+            <div style="background: rgba(255,255,255,0.08); height: 4px; border-radius: 2px; overflow: hidden;">
+              <div style="background: \${ctxColor}; width: \${ctxBarWidth}%; height: 100%; transition: width 0.3s ease;"></div>
             </div>
           </div>
 
+          <!-- 2. 5-Hour Limit Remaining -->
           <div style="margin-bottom: 5px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
               <span style="font-weight: 500; color: #94a3b8; font-size: 10px;">\${labels.h5}</span>
@@ -920,6 +1108,7 @@ const engineTemplate = `/**
             </div>
           </div>
 
+          <!-- 3. Weekly Limit Remaining -->
           <div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
               <span style="font-weight: 500; color: #94a3b8; font-size: 10px;">\${labels.weekly}</span>
@@ -951,6 +1140,7 @@ const engineTemplate = `/**
 
     function setup() {
       try {
+        refreshTokenStats(true);
         const root = document.documentElement || document.body || document;
         if (root) {
           observer.observe(root, {
@@ -983,6 +1173,7 @@ const engineTemplate = `/**
       if (document.body) {
         walkAndTranslate(document.body);
         injectLanguageSwitcher();
+        refreshTokenStats(true);
         if (typeof window.__AGY_RENDER_TOKENS_HUD__ === 'function') {
           window.__AGY_RENDER_TOKENS_HUD__();
         }
@@ -991,10 +1182,31 @@ const engineTemplate = `/**
 
     setInterval(function() {
       injectLanguageSwitcher();
+      refreshTokenStats(false);
       if (typeof window.__AGY_RENDER_TOKENS_HUD__ === 'function') {
         window.__AGY_RENDER_TOKENS_HUD__();
       }
     }, 2000);
+
+    let lastKnownConvId = null;
+    setInterval(function() {
+      const cid = getActiveConvId();
+      if (cid && cid !== lastKnownConvId) {
+        lastKnownConvId = cid;
+        refreshTokenStats(true);
+      }
+    }, 1000);
+
+    if (window.__TSR_ROUTER__ && typeof window.__TSR_ROUTER__.subscribe === 'function') {
+      try {
+        window.__TSR_ROUTER__.subscribe(() => {
+          refreshTokenStats(true);
+          if (typeof window.__AGY_RENDER_TOKENS_HUD__ === 'function') {
+            window.__AGY_RENDER_TOKENS_HUD__();
+          }
+        });
+      } catch (_) {}
+    }
 
     console.log('[Agent-UI-Localizer] Multi-language engine & Native Tokens HUD initialized successfully.');
   } catch (globalErr) {

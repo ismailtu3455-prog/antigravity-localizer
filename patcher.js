@@ -154,6 +154,18 @@ function preparePatch(appType = 'antigravity') {
       console.log(`[*] Блокировка WSL: dist/wsl.js пропатчен (вызовы wsl.exe отключены, консольное окно удалено)`);
     }
 
+    // 3.7. Copy token_stats.py into app.asar and resources directory
+    const tokenStatsSrc = path.join(__dirname, 'token_stats.py');
+    if (fs.existsSync(tokenStatsSrc)) {
+      try {
+        fs.copyFileSync(tokenStatsSrc, path.join(tempExtractDir, 'token_stats.py'));
+        fs.copyFileSync(tokenStatsSrc, path.join(paths.resources, 'token_stats.py'));
+        console.log(`[*] Интеграция Tokens HUD: token_stats.py скопирован в app.asar и resources/`);
+      } catch (tsErr) {
+        console.warn(`[!] Предупреждение при копировании token_stats.py:`, tsErr.message);
+      }
+    }
+
     // 4. Repack to app.asar.patched
     console.log(`[*] Сборка пропатченного архива в: ${paths.patched}`);
     execSync(`npx asar pack "${tempExtractDir}" "${paths.patched}"`, { stdio: 'pipe' });
