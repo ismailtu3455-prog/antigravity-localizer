@@ -8518,17 +8518,28 @@
       return n + '';
     }
 
-    function formatResetTime(seconds) {
-      if (!seconds) return '';
-      const sec = parseInt(seconds, 10);
-      if (isNaN(sec)) return '';
-      const diff = sec - Math.floor(Date.now() / 1000);
-      if (diff <= 0) {
+    function formatResetTime(timeVal) {
+      if (!timeVal) return '';
+      let targetMs = 0;
+      if (typeof timeVal === 'number') {
+        targetMs = timeVal > 1e11 ? timeVal : timeVal * 1000;
+      } else if (typeof timeVal === 'string') {
+        const parsed = Date.parse(timeVal);
+        if (!isNaN(parsed)) {
+          targetMs = parsed;
+        } else {
+          const num = parseInt(timeVal, 10);
+          if (!isNaN(num)) targetMs = num > 1e11 ? num : num * 1000;
+        }
+      }
+      if (!targetMs) return '';
+      const diffSec = Math.floor((targetMs - Date.now()) / 1000);
+      if (diffSec <= 0) {
         return currentLang === 'en' ? 'now' : 'сейчас';
       }
-      const days = Math.floor(diff / 86400);
-      const hours = Math.floor((diff % 86400) / 3600);
-      const mins = Math.floor((diff % 3600) / 60);
+      const days = Math.floor(diffSec / 86400);
+      const hours = Math.floor((diffSec % 86400) / 3600);
+      const mins = Math.floor((diffSec % 3600) / 60);
 
       const dStr = currentLang === 'en' ? 'd' : 'д';
       const hStr = currentLang === 'en' ? 'h' : 'ч';
@@ -8590,133 +8601,57 @@
       return 1000000;
     }
 
-    function findTokenStatsScript() {
+    async function fetchTokenStats(activeId) {
       try {
-        if (!nodeFs || !nodePath) return null;
-        const homeDir = (nodeOs && nodeOs.homedir) ? nodeOs.homedir() : (process.env.USERPROFILE || process.env.HOME || '');
-        const candidates = [
-          nodePath.join(process.resourcesPath || '', 'token_stats.py'),
-          nodePath.join(__dirname || '', 'token_stats.py'),
-          nodePath.join(homeDir, '.gemini', 'token_stats.py'),
-          nodePath.join(homeDir, '.antigravity-tokens-hud', 'token_stats.py'),
-          'C:\\Users\\ismai\\AppData\\Local\\Programs\\antigravity\\resources\\token_stats.py',
-          'C:\\Users\\ismai\\.gemini\\token_stats.py'
-        ];
-        for (const p of candidates) {
-          if (p && nodeFs.existsSync(p)) return p;
-        }
-        if (homeDir && EMBEDDED_TOKEN_STATS_PY) {
-          const autoPath = nodePath.join(homeDir, '.gemini', 'token_stats.py');
-          try {
-            nodeFs.writeFileSync(autoPath, EMBEDDED_TOKEN_STATS_PY, 'utf8');
-            return autoPath;
-          } catch (_) {}
-        }
-      } catch (_) {}
-      return null;
-    }
-
-    function runTokenStatsScript(scriptPath, args, callback) {
-      if (!nodeChildProcess) {
-        callback(new Error('child_process unavailable'), null);
-        return;
-      }
-      const binaries = process.platform === 'win32'
-        ? ['python', 'py', 'python3', nodePath.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WindowsApps', 'python.exe')]
-        : ['python3', 'python'];
-      let idx = 0;
-
-      function tryNext() {
-        if (idx >= binaries.length) {
-          callback(new Error('Python not found'), null);
-          return;
-        }
-        const bin = binaries[idx++];
-        const env = { ...process.env };
-        if (process.platform !== 'win32') {
-          env.PATH = ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin', process.env.PATH || ''].join(':');
-        }
-        try {
-          nodeChildProcess.execFile(bin, [scriptPath, ...args], { windowsHide: true, timeout: 6000, env }, (err, stdout) => {
-            if (err && (err.code === 'ENOENT' || !stdout)) {
-              tryNext();
-            } else {
-              callback(err, stdout);
-            }
-          });
-        } catch (_) {
-          tryNext();
-        }
-      }
-
-      tryNext();
-    }
-
-    function refreshTokenStats(force = false) {
-      const now = Date.now();
-      if (!force && isFetchingTokens) return;
-      if (!force && (now - lastTokenFetchTime < 2500)) return;
-
-      isFetchingTokens = true;
-      lastTokenFetchTime = now;
-
-      try {
-        const scriptPath = findTokenStatsScript();
-        if (!scriptPath) {
-          isFetchingTokens = false;
-          return;
-        }
-
-        const activeId = getActiveConvId();
-        const args = ['--json'];
-        if (activeId) {
-          args.push('--session', activeId);
-        }
-
-        runTokenStatsScript(scriptPath, args, (err, stdout) => {
-          isFetchingTokens = false;
-          if (err || !stdout) return;
-          try {
-            const parsed = JSON.parse(stdout);
-            if (parsed && (parsed.current_session || parsed.sessions)) {
-              lastTokenData = parsed;
-              window.__AGY_DATA__ = parsed;
-
-              try {
-                if (nodeFs && nodePath) {
-                  const homeDir = (nodeOs && nodeOs.homedir) ? nodeOs.homedir() : (process.env.USERPROFILE || process.env.HOME || '');
-                  const cacheFile = nodePath.join(homeDir, '.gemini', 'token_stats.json');
-                  nodeFs.writeFileSync(cacheFile, JSON.stringify(parsed), 'utf8');
-                }
-              } catch (_) {}
-
-              if (typeof window.__AGY_RENDER_TOKENS_HUD__ === 'function') {
-                window.__AGY_RENDER_TOKENS_HUD__();
-              }
-            }
-          } catch (_) {}
-        });
-      } catch (_) {
-        isFetchingTokens = false;
-      }
-    }
-
-    async function fetchOfficialQuotas() {
-      try {
-        const btns = document.querySelectorAll('button');
-        for (const btn of btns) {
-          const fk = Object.keys(btn).find(k => k.startsWith('__reactFiber'));
-          if (!fk) continue;
-          let cur = btn[fk];
-          while (cur) {
-            if (cur.memoizedProps?.value?.retrieveUserQuotaSummary) {
-              return await cur.memoizedProps.value.retrieveUserQuotaSummary({});
-            }
-            cur = cur.return;
+        if (typeof require === 'function') {
+          const electron = require('electron');
+          if (electron && electron.ipcRenderer) {
+            const res = await electron.ipcRenderer.invoke('antigravity:get-token-stats', activeId);
+            if (res) return res;
           }
         }
       } catch (_) {}
       return null;
+    }
+
+    async function fetchOfficialQuotas() {
+      try {
+        let csrfToken = window.__APP_CONFIG__?.csrfToken || '';
+        if (!csrfToken) {
+          const scriptTags = Array.from(document.querySelectorAll('script'));
+          for (const s of scriptTags) {
+            const m = (s.textContent || '').match(/"csrfToken":s*"([^"]+)"/);
+            if (m && m[1]) {
+              csrfToken = m[1];
+              break;
+            }
+          }
+        }
+        if (!csrfToken) return null;
+
+        const res = await fetch('/exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Connect-Protocol-Version': '1',
+            'X-Codeium-Csrf-Token': csrfToken
+          },
+          body: '{}'
+        });
+        if (res.ok) {
+          const json = await res.json();
+          return json.response || json;
+        }
+      } catch (err) {
+        console.warn('[Tokens-HUD] Quota fetch error:', err);
+      }
+      return null;
+    }
+
+    async function refreshTokenStats(force = false) {
+      if (typeof window.__AGY_RENDER_TOKENS_HUD__ === 'function') {
+        await window.__AGY_RENDER_TOKENS_HUD__();
+      }
     }
 
     const HUD_LABELS = {
@@ -8792,42 +8727,19 @@
 
         const activeId = getActiveConvId();
         const modelName = getActiveModelName();
-        const quotaData = await fetchOfficialQuotas();
+        const [statsData, quotaData] = await Promise.all([
+          fetchTokenStats(activeId),
+          fetchOfficialQuotas()
+        ]);
         const labels = HUD_LABELS[currentLang] || HUD_LABELS.ru;
 
-        // Context token metrics
-        let session = null;
-        const data = lastTokenData || window.__AGY_DATA__;
-        if (data) {
-          if (data.sessions && activeId && data.sessions[activeId]) {
-            session = data.sessions[activeId];
-          } else if (activeId && data.current_session && data.current_session.session_id === activeId) {
-            session = data.current_session;
-          } else if (!activeId && data.current_session) {
-            session = data.current_session;
-          } else if (data.sessions) {
-            const sKeys = Object.keys(data.sessions);
-            if (sKeys.length > 0) {
-              session = data.sessions[sKeys[0]];
-            }
-          }
+        const maxCtx = getMaxContextForModel(modelName);
+        let ctxSize = 0;
+        if (statsData && statsData.context_size != null) {
+          ctxSize = statsData.context_size;
         }
-
-        if (!session) {
-          session = {
-            session_id: activeId || 'new',
-            context_size: 0,
-            max_context: getMaxContextForModel(modelName),
-            context_percent: 0.0,
-            cached_tokens: 0,
-            prompt_tokens: 0
-          };
-        }
-
-        const ctxSize = session.context_size || 0;
-        const maxCtx = session.max_context || getMaxContextForModel(modelName);
-        const ctxPct = (session.context_percent != null) ? session.context_percent : ((ctxSize / maxCtx) * 100);
-        const ctxBarWidth = Math.min(100, Math.max(0, ctxPct));
+        const ctxPct = Math.min(100, Math.max(0, (ctxSize / maxCtx) * 100));
+        const ctxBarWidth = ctxPct;
         const ctxK = fmtK(ctxSize);
         const maxK = maxCtx >= 1000000 ? (maxCtx / 1000000).toFixed(0) + 'M' : fmtK(maxCtx);
         const ctxColor = ctxPct > 75 ? '#ef4444' : (ctxPct > 45 ? '#f59e0b' : '#10b981');
@@ -8839,18 +8751,22 @@
 
         if (quotaData && (quotaData.groups || quotaData.quotaGroups)) {
           const groups = quotaData.groups || quotaData.quotaGroups || [];
-          const geminiGroup = groups.find(g => (g.displayName || '').includes('Gemini')) || groups[0];
-          if (geminiGroup && geminiGroup.buckets) {
-            const hBucket = geminiGroup.buckets.find(b => (b.window === '5h' || (b.bucketId || '').includes('5h')));
-            const wBucket = geminiGroup.buckets.find(b => (b.window === 'weekly' || (b.bucketId || '').includes('weekly')));
+          const isClaudeOrGpt = /(claude|gpt|deepseek)/i.test(modelName);
+          const matchedGroup = groups.find(g => isClaudeOrGpt ? /(claude|gpt|3p)/i.test(g.displayName || '') : /gemini/i.test(g.displayName || '')) || groups[0];
 
-            if (hBucket?.remaining?.value != null) {
-              fiveHourPct = Math.round(hBucket.remaining.value * 100);
-              fiveHourReset = formatResetTime(hBucket.resetTime?.seconds);
+          if (matchedGroup && matchedGroup.buckets) {
+            const hBucket = matchedGroup.buckets.find(b => b.window === '5h' || (b.bucketId || '').includes('5h'));
+            const wBucket = matchedGroup.buckets.find(b => b.window === 'weekly' || (b.bucketId || '').includes('weekly'));
+
+            if (hBucket) {
+              const hFrac = hBucket.remainingFraction ?? hBucket.remaining?.value ?? 1;
+              fiveHourPct = Math.round(hFrac * 100);
+              fiveHourReset = formatResetTime(hBucket.resetTime);
             }
-            if (wBucket?.remaining?.value != null) {
-              weeklyPct = Math.round(wBucket.remaining.value * 100);
-              weeklyReset = formatResetTime(wBucket.resetTime?.seconds);
+            if (wBucket) {
+              const wFrac = wBucket.remainingFraction ?? wBucket.remaining?.value ?? 1;
+              weeklyPct = Math.round(wFrac * 100);
+              weeklyReset = formatResetTime(wBucket.resetTime);
             }
           }
         }

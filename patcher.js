@@ -154,6 +154,148 @@ function preparePatch(appType = 'antigravity') {
       console.log(`[*] Блокировка WSL: dist/wsl.js пропатчен (вызовы wsl.exe отключены, консольное окно удалено)`);
     }
 
+    // 3.65. Patch dist/ipcHandlers.js to add native antigravity:get-token-stats IPC handler
+    const ipcHandlersPath = path.join(tempExtractDir, 'dist', 'ipcHandlers.js');
+    if (fs.existsSync(ipcHandlersPath)) {
+      let ipcCode = fs.readFileSync(ipcHandlersPath, 'utf8');
+      if (!ipcCode.includes('antigravity:get-token-stats')) {
+        const handlerInjection = `
+    // Native Tokens & Context Stats handler (Antigravity Hub & Localizer)
+    electron_1.ipcMain.handle('antigravity:get-token-stats', async (_event, targetId) => {
+      try {
+        return __agyGetTokenStats(targetId);
+      } catch (err) {
+        return null;
+      }
+    });
+`;
+        ipcCode = ipcCode.replace(
+          /(electron_1\.ipcMain\.handle\('wsl:connect'[\s\S]*?\}\);)/,
+          `$1\n${handlerInjection}`
+        );
+
+        const helperFunctions = `
+// --- [ANTIGRAVITY-HUB TOKEN STATS HELPER FUNCTIONS] ---
+function __agyDecodeVarint(buf, offset) {
+  let res = 0;
+  let shift = 0;
+  while (true) {
+    if (offset >= buf.length) break;
+    const b = buf[offset++];
+    res += (b & 0x7f) * Math.pow(2, shift);
+    if (!(b & 0x80)) break;
+    shift += 7;
+  }
+  return [res, offset];
+}
+
+function __agyParseProto(buf, offset, end) {
+  if (offset === undefined) offset = 0;
+  if (end === undefined || end === null) end = buf.length;
+  const fields = [];
+  while (offset < end) {
+    const [tag, nextOff] = __agyDecodeVarint(buf, offset);
+    offset = nextOff;
+    const fieldNum = Math.floor(tag / 8);
+    const wireType = tag & 7;
+    if (wireType === 0) {
+      const [val, o] = __agyDecodeVarint(buf, offset);
+      offset = o;
+      fields.push({ fieldNum, wireType: 'varint', val });
+    } else if (wireType === 2) {
+      const [len, o] = __agyDecodeVarint(buf, offset);
+      offset = o;
+      const val = buf.subarray(offset, offset + len);
+      offset += len;
+      fields.push({ fieldNum, wireType: 'bytes', val });
+    } else if (wireType === 1) {
+      const val = buf.subarray(offset, offset + 8);
+      offset += 8;
+      fields.push({ fieldNum, wireType: 'fixed64', val });
+    } else if (wireType === 5) {
+      const val = buf.subarray(offset, offset + 4);
+      offset += 4;
+      fields.push({ fieldNum, wireType: 'fixed32', val });
+    } else {
+      break;
+    }
+  }
+  return fields;
+}
+
+function __agyGetTokenStats(targetId) {
+  try {
+    const { DatabaseSync } = require('node:sqlite');
+    const fs = require('fs');
+    const path = require('path');
+    const os = require('os');
+
+    const dir = path.join(os.homedir(), '.gemini', 'antigravity', 'conversations');
+    if (!fs.existsSync(dir)) return null;
+
+    let targetPath = null;
+    if (targetId) {
+      const p = path.join(dir, targetId + '.db');
+      if (fs.existsSync(p)) targetPath = p;
+    }
+
+    if (!targetPath) {
+      const files = fs.readdirSync(dir).filter(f => f.endsWith('.db')).map(f => {
+        const p = path.join(dir, f);
+        return { path: p, mtime: fs.statSync(p).mtimeMs, id: f.replace('.db', '') };
+      }).sort((a, b) => b.mtime - a.mtime);
+      if (files.length === 0) return null;
+      targetPath = files[0].path;
+      targetId = files[0].id;
+    }
+
+    const db = new DatabaseSync(targetPath, { readOnly: true });
+    const rows = db.prepare('SELECT idx, data FROM gen_metadata ORDER BY idx ASC').all();
+    let rec = null;
+    for (const row of rows) {
+      const proto = __agyParseProto(row.data);
+      for (const f of proto) {
+        if (f.fieldNum === 1) {
+          for (const sf of __agyParseProto(f.val)) {
+            if (sf.fieldNum === 17) {
+              for (const tf of __agyParseProto(sf.val)) {
+                if (tf.wireType === 'bytes') {
+                  const sub = __agyParseProto(tf.val);
+                  const map = {};
+                  for (const item of sub) {
+                    if (item.wireType === 'varint') map[item.fieldNum] = item.val;
+                  }
+                  if (map[2] || map[5] || map[3]) {
+                    rec = {
+                      session_id: targetId,
+                      prompt_tokens: map[2] || 0,
+                      output_tokens: map[3] || 0,
+                      cached_tokens: map[5] || 0,
+                      thinking_tokens: map[9] || 0,
+                      text_tokens: map[10] || 0,
+                      context_size: (map[5] || 0) + (map[2] || 0)
+                    };
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    db.close();
+    return rec;
+  } catch (err) {
+    return null;
+  }
+}
+`;
+        ipcCode += '\n' + helperFunctions;
+        fs.writeFileSync(ipcHandlersPath, ipcCode, 'utf8');
+        console.log(`[*] Native Tokens HUD: dist/ipcHandlers.js пропатчен (IPC antigravity:get-token-stats зарегистрирован)`);
+      }
+    }
+
     // 3.7. Copy token_stats.py into app.asar and resources directory
     const tokenStatsSrc = path.join(__dirname, 'token_stats.py');
     if (fs.existsSync(tokenStatsSrc)) {
