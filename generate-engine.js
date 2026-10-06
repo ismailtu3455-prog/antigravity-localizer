@@ -122,9 +122,11 @@ const engineTemplate = `/**
         }
         if (process.env.APPDATA) {
           storageDirs.push(nodePath.join(process.env.APPDATA, 'Antigravity'));
+          storageDirs.push(nodePath.join(process.env.APPDATA, 'Antigravity IDE'));
         }
         if (process.env.LOCALAPPDATA) {
           storageDirs.push(nodePath.join(process.env.LOCALAPPDATA, 'Programs', 'antigravity', 'resources'));
+          storageDirs.push(nodePath.join(process.env.LOCALAPPDATA, 'Programs', 'antigravity'));
         }
 
         for (const dir of storageDirs) {
@@ -1181,6 +1183,12 @@ const engineTemplate = `/**
     });
 
     setInterval(function() {
+      try {
+        const saved = getSavedLang();
+        if (saved && saved !== currentLang) {
+          setLanguage(saved);
+        }
+      } catch (_) {}
       injectLanguageSwitcher();
       refreshTokenStats(false);
       if (typeof window.__AGY_RENDER_TOKENS_HUD__ === 'function') {
