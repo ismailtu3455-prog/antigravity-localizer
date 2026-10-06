@@ -1,13 +1,13 @@
 /**
- * Agent UI Localizer - Universal Multi-Language Translation Engine & Country Picker
- * Supports: Русский (ru), Українська (uk), Қазақша (kk), Беларуская (be), O'zbekcha (uz), English (en)
+ * Antigravity Hub & Localizer - Universal Multi-Language Engine + Native Tokens HUD
+ * Fully integrated, persistent across reboots, zero external background processes.
  */
 (function() {
   try {
     if (window.__AGENT_UI_LOCALIZER_INITIALIZED__) return;
     window.__AGENT_UI_LOCALIZER_INITIALIZED__ = true;
 
-    console.log('[Agent-UI-Localizer] Starting multi-language translation engine...');
+    console.log('[Agent-UI-Localizer] Starting multi-language translation engine & Tokens HUD...');
 
     const LOCALES = {
       ru: {
@@ -7837,7 +7837,7 @@
       uk: 'Українська',
       kk: 'Қазақша',
       be: 'Беларуская',
-      uz: 'O'zbekcha'
+      uz: 'O\'zbekcha'
     };
 
     const TOAST_MSGS = {
@@ -7845,12 +7845,12 @@
       en: '🇬🇧 Interface language: English',
       de: '🇩🇪 Oberflächensprache: Deutsch',
       es: '🇪🇸 Idioma de la interfaz: Español',
-      fr: '🇫🇷 Langue de l'interface: Français',
+      fr: '🇫🇷 Langue de l\'interface: Français',
       tr: '🇹🇷 Arayüz dili: Türkçe',
       uk: '🇺🇦 Мова інтерфейсу: Українська',
       kk: '🇰🇿 Интерфейс тілі: Қазақша',
       be: '🇧🇾 Мова інтэрфейсу: Беларуская',
-      uz: '🇺🇿 Interfeys tili: O'zbekcha'
+      uz: '🇺🇿 Interfeys tili: O\'zbekcha'
     };
 
     // Fast case-insensitive lookup maps for each locale
@@ -7864,41 +7864,57 @@
       }
     }
 
-    // High quality SVG flags for all supported CIS countries & English
+    // High quality SVG flags
     const FLAG_SVGS = {
       ru: '<svg width="20" height="14" viewBox="0 0 9 6" style="border-radius:2px;box-shadow:0 0 1px rgba(0,0,0,0.6);display:block;pointer-events:none;"><rect fill="#ffffff" width="9" height="2"/><rect fill="#0039a6" y="2" width="9" height="2"/><rect fill="#d52b1e" y="4" width="9" height="2"/></svg>',
       uk: '<svg width="20" height="14" viewBox="0 0 9 6" style="border-radius:2px;box-shadow:0 0 1px rgba(0,0,0,0.6);display:block;pointer-events:none;"><rect fill="#0057b7" width="9" height="3"/><rect fill="#ffd700" y="3" width="9" height="3"/></svg>',
       kk: '<svg width="20" height="14" viewBox="0 0 20 14" style="border-radius:2px;box-shadow:0 0 1px rgba(0,0,0,0.6);display:block;pointer-events:none;"><rect width="20" height="14" fill="#00afca"/><rect x="0" y="0" width="2" height="14" fill="#fec50c"/><circle cx="11" cy="6" r="2.5" fill="#fec50c"/><path d="M7.5 9.5 Q11 8 14.5 9.5 Q11 9 7.5 9.5 Z" fill="#fec50c"/></svg>',
       be: '<svg width="20" height="14" viewBox="0 0 9 6" style="border-radius:2px;box-shadow:0 0 1px rgba(0,0,0,0.6);display:block;pointer-events:none;"><rect fill="#c8313e" width="9" height="4"/><rect fill="#4aa658" y="4" width="9" height="2"/><rect fill="#ffffff" width="1.5" height="6"/></svg>',
       uz: '<svg width="20" height="14" viewBox="0 0 20 14" style="border-radius:2px;box-shadow:0 0 1px rgba(0,0,0,0.6);display:block;pointer-events:none;"><rect fill="#0099b5" width="20" height="4.4"/><rect fill="#ce1126" y="4.4" width="20" height="0.6"/><rect fill="#ffffff" y="5.0" width="20" height="4.0"/><rect fill="#ce1126" y="9.0" width="20" height="0.6"/><rect fill="#1eb53a" y="9.6" width="20" height="4.4"/><circle cx="3" cy="2.2" r="1.3" fill="#ffffff"/><circle cx="3.5" cy="2.2" r="1.1" fill="#0099b5"/></svg>',
-      en: '<svg width="20" height="14" viewBox="0 0 60 30" style="border-radius:2px;box-shadow:0 0 1px rgba(0,0,0,0.6);display:block;pointer-events:none;"><clipPath id="uk-f-c"><path d="M0,0 v30 h60 v-30 z"/></clipPath><clipPath id="uk-f-d"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath><g clip-path="url(#uk-f-c)"><path d="M0,0 v30 h60 v-30 z" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#uk-f-d)" stroke="#C8102E" stroke-width="4"/><path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/></g></svg>'
+      en: '<svg width="20" height="14" viewBox="0 0 60 30" style="border-radius:2px;box-shadow:0 0 1px rgba(0,0,0,0.6);display:block;pointer-events:none;"><clipPath id="uk-f-c"><path d="M0,0 v30 h60 v-30 z"/></clipPath><clipPath id="uk-f-d"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath><g clip-path="url(#uk-f-c)"><path d="M0,0 v30 h60 v-30 z" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#uk-f-d)" stroke="#C8102E" stroke-width="4"/><path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/></g></svg>',
+      de: '<svg width="20" height="14" viewBox="0 0 5 3" style="border-radius:2px;box-shadow:0 0 1px rgba(0,0,0,0.6);display:block;pointer-events:none;"><rect width="5" height="1" fill="#000"/><rect y="1" width="5" height="1" fill="#D00"/><rect y="2" width="5" height="1" fill="#FFCE00"/></svg>',
+      es: '<svg width="20" height="14" viewBox="0 0 750 500" style="border-radius:2px;box-shadow:0 0 1px rgba(0,0,0,0.6);display:block;pointer-events:none;"><rect width="750" height="500" fill="#c60b1e"/><rect y="125" width="750" height="250" fill="#ffc400"/></svg>',
+      fr: '<svg width="20" height="14" viewBox="0 0 3 2" style="border-radius:2px;box-shadow:0 0 1px rgba(0,0,0,0.6);display:block;pointer-events:none;"><rect width="1" height="2" fill="#002395"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ed2939"/></svg>',
+      tr: '<svg width="20" height="14" viewBox="0 0 1200 800" style="border-radius:2px;box-shadow:0 0 1px rgba(0,0,0,0.6);display:block;pointer-events:none;"><rect width="1200" height="800" fill="#E30A17"/><circle cx="425" cy="400" r="200" fill="#ffffff"/><circle cx="475" cy="400" r="160" fill="#E30A17"/><polygon fill="#ffffff" points="583,400 665,426 614,357 614,443 665,374"/></svg>'
     };
 
-    // Node persistent disk storage in user profile
+    // Node persistent disk storage resolution
     let nodeFs = null;
     let nodePath = null;
-    let langFilePath = null;
+    let storageDirs = [];
+
     try {
       if (typeof require === 'function') {
         nodeFs = require('fs');
         nodePath = require('path');
         const os = require('os');
-        const home = os.homedir() || process.env.USERPROFILE || process.env.HOME || '';
-        const dir = nodePath.join(home, '.gemini');
-        if (!nodeFs.existsSync(dir)) {
-          nodeFs.mkdirSync(dir, { recursive: true });
+        const home = os.homedir ? os.homedir() : (process.env.USERPROFILE || process.env.HOME || '');
+        if (home) {
+          storageDirs.push(nodePath.join(home, '.gemini'));
         }
-        langFilePath = nodePath.join(dir, 'agent_ui_lang.txt');
+        if (process.env.APPDATA) {
+          storageDirs.push(nodePath.join(process.env.APPDATA, 'Antigravity'));
+        }
+        if (process.env.LOCALAPPDATA) {
+          storageDirs.push(nodePath.join(process.env.LOCALAPPDATA, 'Programs', 'antigravity', 'resources'));
+        }
+
+        for (const dir of storageDirs) {
+          try {
+            if (!nodeFs.existsSync(dir)) nodeFs.mkdirSync(dir, { recursive: true });
+          } catch (_) {}
+        }
 
         // Dynamically load custom user-generated AI locales from ~/.gemini/custom_locales/
-        const customLocalesDir = nodePath.join(dir, 'custom_locales');
-        if (nodeFs.existsSync(customLocalesDir)) {
-          const files = nodeFs.readdirSync(customLocalesDir);
-          for (const f of files) {
-            if (f.endsWith('.json')) {
-              try {
-                const code = f.replace('.json', '').toLowerCase();
-                const jsonContent = JSON.parse(nodeFs.readFileSync(nodePath.join(customLocalesDir, f), 'utf8'));
+        if (home) {
+          const customLocalesDir = nodePath.join(home, '.gemini', 'custom_locales');
+          if (nodeFs.existsSync(customLocalesDir)) {
+            const files = nodeFs.readdirSync(customLocalesDir);
+            for (const f of files) {
+              if (f.endsWith('.json')) {
+                try {
+                  const code = f.replace('.json', '').toLowerCase();
+                  const jsonContent = JSON.parse(nodeFs.readFileSync(nodePath.join(customLocalesDir, f), 'utf8'));
                   const flagDisplay = (jsonContent.flag && typeof jsonContent.flag === 'string' && jsonContent.flag.trim()) ? jsonContent.flag.trim() : '🌐';
                   LOCALES[code] = jsonContent;
                   LANG_NAMES[code] = jsonContent.name;
@@ -7914,9 +7930,9 @@
                     }
                   }
                   console.log('[Agent-UI-Localizer] Loaded custom locale:', code, jsonContent.name);
+                } catch (e) {
+                  console.warn('[Agent-UI-Localizer] Failed loading custom locale:', f, e);
                 }
-              } catch (e) {
-                console.warn('[Agent-UI-Localizer] Failed loading custom locale:', f, e);
               }
             }
           }
@@ -7925,27 +7941,41 @@
     } catch (_) {}
 
     function getSavedLang() {
+      // 1. Check all disk file locations
       try {
-        if (nodeFs && langFilePath && nodeFs.existsSync(langFilePath)) {
-          const content = nodeFs.readFileSync(langFilePath, 'utf8').trim();
-          if (content && (['ru', 'uk', 'kk', 'be', 'uz', 'en'].includes(content) || LOCALES[content])) {
-            return content;
+        if (nodeFs && nodePath) {
+          for (const dir of storageDirs) {
+            const langFile = nodePath.join(dir, 'agent_ui_lang.txt');
+            if (nodeFs.existsSync(langFile)) {
+              const content = nodeFs.readFileSync(langFile, 'utf8').trim().toLowerCase();
+              if (content && (LOCALES[content] || content === 'en')) {
+                return content;
+              }
+            }
           }
         }
       } catch (_) {}
+
+      // 2. Check localStorage
       try {
         const stored = window.localStorage && window.localStorage.getItem('agent_ui_lang');
-        if (stored && (['ru', 'uk', 'kk', 'be', 'uz', 'en'].includes(stored) || LOCALES[stored])) {
+        if (stored && (LOCALES[stored] || stored === 'en')) {
           return stored;
         }
       } catch (_) {}
+
       return 'ru';
     }
 
     function saveLang(lang) {
       try {
-        if (nodeFs && langFilePath) {
-          nodeFs.writeFileSync(langFilePath, lang, 'utf8');
+        if (nodeFs && nodePath) {
+          for (const dir of storageDirs) {
+            try {
+              const langFile = nodePath.join(dir, 'agent_ui_lang.txt');
+              nodeFs.writeFileSync(langFile, lang, 'utf8');
+            } catch (_) {}
+          }
         }
       } catch (_) {}
       try {
@@ -7960,23 +7990,23 @@
     const originalTexts = new WeakMap();
     const originalAttrs = new WeakMap();
 
-    // Resolves any text (whether English, Russian, Ukrainian, Kazakh, etc.) back to canonical English
+    // Resolves any text back to canonical English
     function resolveCanonicalEnglish(text) {
       if (!text || typeof text !== 'string') return null;
       const trimmed = text.trim();
       if (!trimmed) return null;
 
-      // 1. Is it already in exact English keys?
-      if (LOCALES.ru.exact[trimmed]) return trimmed;
+      // 1. Exact match in English keys
+      if (LOCALES.ru && LOCALES.ru.exact && LOCALES.ru.exact[trimmed]) return trimmed;
 
-      // 2. Trailing colon?
+      // 2. Trailing colon
       if (trimmed.endsWith(':')) {
         const withoutColon = trimmed.slice(0, -1).trim();
-        if (LOCALES.ru.exact[withoutColon]) return trimmed;
+        if (LOCALES.ru && LOCALES.ru.exact && LOCALES.ru.exact[withoutColon]) return trimmed;
         if (REVERSE_MAP[withoutColon]) return REVERSE_MAP[withoutColon] + ':';
       }
 
-      // 3. In REVERSE_MAP?
+      // 3. Reverse map
       if (REVERSE_MAP[trimmed]) return REVERSE_MAP[trimmed];
       if (REVERSE_MAP[trimmed.toLowerCase()]) return REVERSE_MAP[trimmed.toLowerCase()];
 
@@ -7998,29 +8028,29 @@
       const trailingSpace = canonicalText.match(/\s*$/)[0];
 
       // 1. Exact match in target locale
-      if (locale.exact[trimmed]) {
+      if (locale && locale.exact && locale.exact[trimmed]) {
         return leadingSpace + locale.exact[trimmed] + trailingSpace;
       }
 
-      // 2. Trailing colon handling (e.g. "Preset:" or "Plan:")
+      // 2. Trailing colon handling
       if (trimmed.endsWith(':')) {
         const withoutColon = trimmed.slice(0, -1).trim();
-        if (locale.exact[withoutColon]) {
+        if (locale && locale.exact && locale.exact[withoutColon]) {
           return leadingSpace + locale.exact[withoutColon] + ':' + trailingSpace;
         }
-        if (lowerMap[withoutColon.toLowerCase()]) {
+        if (lowerMap && lowerMap[withoutColon.toLowerCase()]) {
           return leadingSpace + lowerMap[withoutColon.toLowerCase()] + ':' + trailingSpace;
         }
       }
 
       // 3. Case-insensitive match in target locale
       const lower = trimmed.toLowerCase();
-      if (lowerMap[lower]) {
+      if (lowerMap && lowerMap[lower]) {
         return leadingSpace + lowerMap[lower] + trailingSpace;
       }
 
       // 4. Pattern regex match
-      if (locale.patterns) {
+      if (locale && locale.patterns) {
         for (const pat of locale.patterns) {
           try {
             const reg = new RegExp(pat.regex, 'i');
@@ -8032,12 +8062,12 @@
         }
       }
 
-      // 5. Fallback to Russian if missing in other CIS language
+      // 5. Fallback to Russian if missing in another locale
       if (lang !== 'ru' && LOCALES.ru) {
-        if (LOCALES.ru.exact[trimmed]) {
+        if (LOCALES.ru.exact && LOCALES.ru.exact[trimmed]) {
           return leadingSpace + LOCALES.ru.exact[trimmed] + trailingSpace;
         }
-        if (LOWER_MAPS.ru[lower]) {
+        if (LOWER_MAPS.ru && LOWER_MAPS.ru[lower]) {
           return leadingSpace + LOWER_MAPS.ru[lower] + trailingSpace;
         }
       }
@@ -8047,7 +8077,7 @@
 
     function translateElementAttrs(node) {
       if (!node || node.nodeType !== 1) return;
-      if (node.id === 'agent-ui-lang-switcher' || node.id === 'agent-ui-lang-menu' || node.id === 'agent-ui-toast' || node.closest?.('#agent-ui-lang-switcher') || node.closest?.('#agent-ui-lang-menu')) return;
+      if (node.id === 'agent-ui-lang-switcher' || node.id === 'agent-ui-lang-menu' || node.id === 'agent-ui-toast' || node.id === 'antigravity-token-widget' || node.closest?.('#agent-ui-lang-switcher') || node.closest?.('#agent-ui-lang-menu') || node.closest?.('#antigravity-token-widget')) return;
 
       const attrs = ['placeholder', 'title', 'aria-label'];
       for (const attr of attrs) {
@@ -8084,13 +8114,12 @@
       if (parent) {
         const tag = parent.tagName?.toLowerCase();
         if (tag === 'code' || tag === 'pre' || tag === 'script' || tag === 'style') return;
-        if (parent.id === 'agent-ui-lang-switcher' || parent.id === 'agent-ui-lang-menu' || parent.id === 'agent-ui-toast' || parent.closest?.('#agent-ui-lang-switcher') || parent.closest?.('#agent-ui-lang-menu')) return;
+        if (parent.id === 'agent-ui-lang-switcher' || parent.id === 'agent-ui-lang-menu' || parent.id === 'agent-ui-toast' || parent.id === 'antigravity-token-widget' || parent.closest?.('#agent-ui-lang-switcher') || parent.closest?.('#agent-ui-lang-menu') || parent.closest?.('#antigravity-token-widget')) return;
       }
 
       const val = node.nodeValue;
       if (!val || !val.trim()) return;
 
-      // Retrieve or resolve canonical English text
       let canon = originalTexts.get(node);
       if (!canon) {
         canon = resolveCanonicalEnglish(val);
@@ -8116,7 +8145,7 @@
         return;
       }
       if (node.nodeType === 1) {
-        if (node.id === 'agent-ui-lang-switcher' || node.id === 'agent-ui-lang-menu' || node.id === 'agent-ui-toast' || node.closest?.('#agent-ui-lang-switcher') || node.closest?.('#agent-ui-lang-menu')) return;
+        if (node.id === 'agent-ui-lang-switcher' || node.id === 'agent-ui-lang-menu' || node.id === 'agent-ui-toast' || node.id === 'antigravity-token-widget' || node.closest?.('#agent-ui-lang-switcher') || node.closest?.('#agent-ui-lang-menu') || node.closest?.('#antigravity-token-widget')) return;
         const tag = node.tagName?.toLowerCase();
         if (tag === 'code' || tag === 'pre' || tag === 'script' || tag === 'style') return;
 
@@ -8202,6 +8231,9 @@
       saveLang(currentLang);
       updateSwitcherUI();
       walkAndTranslate(document.body);
+      if (typeof window.__AGY_RENDER_TOKENS_HUD__ === 'function') {
+        window.__AGY_RENDER_TOKENS_HUD__();
+      }
       showToast(TOAST_MSGS[currentLang] || ('Язык: ' + (LANG_NAMES[currentLang] || currentLang)));
     }
 
@@ -8211,7 +8243,7 @@
       const flagSvg = FLAG_SVGS[currentLang] || FLAG_SVGS.ru;
       const caretSvg = '<svg width="8" height="6" viewBox="0 0 8 6" style="opacity:0.75;display:block;pointer-events:none;"><path d="M1 1.5L4 4.5L7 1.5" stroke="#ffffff" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>';
       btn.innerHTML = `<span style="display:inline-flex;align-items:center;gap:4px;pointer-events:none;">${flagSvg}${caretSvg}</span>`;
-      btn.title = 'Язык / Мова / Тіл: ' + (LANG_NAMES[currentLang] || 'Русский') + ' (Нажмите для выбора страны)';
+      btn.title = 'Язык / Мова / Тіл: ' + (LANG_NAMES[currentLang] || 'Русский') + ' (Нажмите для выбора языка)';
     }
 
     function toggleLangMenu(e) {
@@ -8274,7 +8306,7 @@
         { code: 'uk', name: 'Украинский', native: 'Українська' },
         { code: 'kk', name: 'Казахский', native: 'Қазақша' },
         { code: 'be', name: 'Белорусский', native: 'Беларуская' },
-        { code: 'uz', name: 'Узбекский', native: 'O'zbekcha' }
+        { code: 'uz', name: 'Узбекский', native: 'O\'zbekcha' }
       ];
 
       LANG_LIST.forEach(item => {
@@ -8342,11 +8374,9 @@
     }
 
     function findNavContainer() {
-      // 1. Find forward navigation button in top header bar
-      const fwd = document.querySelector('button[aria-label="Go Forward"], button[title="Go Forward"], button[aria-label="Вперед"], button[title="Вперед"], button[aria-label*="Forward"], button[aria-label*="Вперед"]');
+      const fwd = document.querySelector('button[aria-label="Go Forward"], button[title="Go Forward"], button[aria-label="Вперед"], button[title="Вперед"], button[aria-label*="Forward"], button[aria-label*="Вперед"], button[aria-label*="Попередня"]');
       if (fwd && fwd.parentElement) return fwd.parentElement;
 
-      // 2. Find by material symbol text
       const symbols = document.querySelectorAll('button span, button i');
       for (const s of symbols) {
         if (s.textContent?.trim() === 'arrow_forward' && s.closest('button')) {
@@ -8355,7 +8385,6 @@
         }
       }
 
-      // 3. Fallback to sidebar toggle container
       const sb = document.querySelector('[data-testid="sidebar-toggle"]');
       if (sb && sb.parentElement) return sb.parentElement;
 
@@ -8406,7 +8435,6 @@
 
           btn.addEventListener('click', toggleLangMenu);
 
-          // Observe button content to immediately restore flag if emptied by React reconciliation
           const btnObserver = new MutationObserver(() => {
             if (!btn.hasChildNodes() || btn.innerHTML.trim() === '') {
               updateSwitcherUI();
@@ -8415,7 +8443,6 @@
           btnObserver.observe(btn, { childList: true });
         }
 
-        // Always ensure content is up to date
         updateSwitcherUI();
 
         const navContainer = findNavContainer();
@@ -8430,7 +8457,6 @@
           return;
         }
 
-        // Fixed position fallback in the top navigation bar area
         if (btn.parentElement !== document.body && document.body) {
           btn.style.position = 'fixed';
           btn.style.top = '7px';
@@ -8443,11 +8469,254 @@
       }
     }
 
-    // Keyboard shortcut: Alt + L cycles to next language or opens menu
+    // ================= NATIVE INTEGRATED TOKENS HUD =================
+    function isHudEnabled() {
+      try {
+        if (nodeFs && nodePath) {
+          for (const dir of storageDirs) {
+            const f = nodePath.join(dir, 'agent_tokens_hud.txt');
+            if (nodeFs.existsSync(f)) {
+              const val = nodeFs.readFileSync(f, 'utf8').trim().toLowerCase();
+              if (val === 'false' || val === '0' || val === 'disabled' || val === 'off') return false;
+            }
+          }
+        }
+      } catch (_) {}
+      try {
+        const ls = window.localStorage && window.localStorage.getItem('agent_tokens_hud');
+        if (ls === 'false' || ls === '0' || ls === 'disabled' || ls === 'off') return false;
+      } catch (_) {}
+      return true;
+    }
+
+    function fmtK(n) {
+      if (!n || n <= 0) return '0';
+      if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+      if (n >= 1000) return Math.round(n / 1000) + 'k';
+      return n + '';
+    }
+
+    function formatResetTime(seconds) {
+      if (!seconds) return '';
+      const sec = parseInt(seconds, 10);
+      if (isNaN(sec)) return '';
+      const diff = sec - Math.floor(Date.now() / 1000);
+      if (diff <= 0) {
+        return currentLang === 'en' ? 'now' : 'сейчас';
+      }
+      const days = Math.floor(diff / 86400);
+      const hours = Math.floor((diff % 86400) / 3600);
+      const mins = Math.floor((diff % 3600) / 60);
+
+      const dStr = currentLang === 'en' ? 'd' : 'д';
+      const hStr = currentLang === 'en' ? 'h' : 'ч';
+      const mStr = currentLang === 'en' ? 'm' : 'м';
+
+      if (days > 0) return `${days}${dStr} ${hours}${hStr}`;
+      if (hours > 0) return `${hours}${hStr} ${mins}${mStr}`;
+      return `${mins}${mStr}`;
+    }
+
+    function getActiveConvId() {
+      try {
+        if (window.__TSR_ROUTER__?.state) {
+          const matches = window.__TSR_ROUTER__.state.matches || [];
+          for (let i = matches.length - 1; i >= 0; i--) {
+            const cid = matches[i]?.params?.cascadeId;
+            if (cid) return cid;
+          }
+          const pathname = window.__TSR_ROUTER__.state.location?.pathname || '';
+          const parts = pathname.split('/');
+          const idx = parts.indexOf('c');
+          if (idx !== -1 && parts[idx + 1]) return parts[idx + 1];
+        }
+        const mainChat = document.querySelector('div:not([data-testid="conversation-row-sidebar"])[data-cascade-id]');
+        if (mainChat) {
+          const id = mainChat.getAttribute('data-cascade-id');
+          if (id) return id;
+        }
+        const selRow = document.querySelector('[data-selected="true"][data-cascade-id]') || document.querySelector('[data-selected="true"]');
+        if (selRow) {
+          const id = selRow.getAttribute('data-cascade-id');
+          if (id) return id;
+        }
+        const parts = window.location.pathname.split('/');
+        const idx = parts.indexOf('c');
+        if (idx !== -1 && parts[idx + 1]) return parts[idx + 1];
+      } catch (_) {}
+      return null;
+    }
+
+    function getActiveModelName() {
+      try {
+        const btns = Array.from(document.querySelectorAll('button'));
+        const modelBtn = btns.find(b => b.textContent && (b.textContent.includes('Gemini') || b.textContent.includes('Claude') || b.textContent.includes('GPT') || b.textContent.includes('DeepSeek')));
+        if (modelBtn) {
+          const txt = modelBtn.innerText.replace(/\s+/g, ' ').trim();
+          const m = txt.match(/(Gemini\s+[\d.]+\s+\w+|Claude\s+[\w\s.]+|GPT-[\w\s.]+|DeepSeek\s+[\w\s.]+)/i);
+          if (m) return m[1];
+          return txt.split(' ')[0];
+        }
+      } catch (_) {}
+      return 'Gemini 3.7 Flash';
+    }
+
+    async function fetchOfficialQuotas() {
+      try {
+        const btns = document.querySelectorAll('button');
+        for (const btn of btns) {
+          const fk = Object.keys(btn).find(k => k.startsWith('__reactFiber'));
+          if (!fk) continue;
+          let cur = btn[fk];
+          while (cur) {
+            if (cur.memoizedProps?.value?.retrieveUserQuotaSummary) {
+              return await cur.memoizedProps.value.retrieveUserQuotaSummary({});
+            }
+            cur = cur.return;
+          }
+        }
+      } catch (_) {}
+      return null;
+    }
+
+    const HUD_LABELS = {
+      ru: { h5: '5-часовой', weekly: 'Недельный', tip5h: 'Остаток 5-часового лимита', tipWk: 'Остаток недельного лимита', reset: 'сброс через', ctx: 'Контекст' },
+      uk: { h5: '5-годинний', weekly: 'Тижневий', tip5h: 'Залишок 5-годинного ліміту', tipWk: 'Залишок тижневого ліміту', reset: 'скидання через', ctx: 'Контекст' },
+      kk: { h5: '5-сағаттық', weekly: 'Апталық', tip5h: '5-сағаттық лимит қалдығы', tipWk: 'Апталық лимит қалдығы', reset: 'қалған уақыт', ctx: 'Мәнмәтін' },
+      be: { h5: '5-гадзінны', weekly: 'Тыднёвы', tip5h: 'Рэштка 5-гадзіннага ліміту', tipWk: 'Рэштка тыднёвага ліміту', reset: 'скід праз', ctx: 'Кантэкст' },
+      uz: { h5: '5-soatlik', weekly: 'Haftalik', tip5h: '5-soatlik limit qoldig\'i', tipWk: 'Haftalik limit qoldig\'i', reset: 'yangilanish', ctx: 'Kontekst' },
+      en: { h5: '5-Hour', weekly: 'Weekly', tip5h: '5-Hour limit remaining', tipWk: 'Weekly limit remaining', reset: 'reset in', ctx: 'Context' },
+      de: { h5: '5-Stunden', weekly: 'Wöchentlich', tip5h: '5-Stunden-Limit verbleibend', tipWk: 'Wöchentliches Limit verbleibend', reset: 'Reset in', ctx: 'Kontext' },
+      es: { h5: '5-Horas', weekly: 'Semanal', tip5h: 'Límite de 5 horas restante', tipWk: 'Límite semanal restante', reset: 'reinicio en', ctx: 'Contexto' },
+      fr: { h5: '5-Heures', weekly: 'Hebdomadaire', tip5h: 'Limite 5h restante', tipWk: 'Limite hebdomadaire restante', reset: 'réinitialisation dans', ctx: 'Contexte' },
+      tr: { h5: '5-Saatlik', weekly: 'Haftalık', tip5h: '5 saatlik kalan limit', tipWk: 'Haftalık kalan limit', reset: 'sıfırlanma', ctx: 'Bağlam' }
+    };
+
+    window.__AGY_RENDER_TOKENS_HUD__ = async function() {
+      try {
+        if (!isHudEnabled()) {
+          const oldWidget = document.getElementById('antigravity-token-widget');
+          if (oldWidget) oldWidget.remove();
+          return;
+        }
+
+        // Find settings button in left sidebar
+        const allButtons = Array.from(document.querySelectorAll('button'));
+        const settingsBtn = allButtons.find(b => {
+          const t = (b.textContent || '').trim();
+          const al = (b.getAttribute('aria-label') || '').trim();
+          const title = (b.getAttribute('title') || '').trim();
+          return t.includes('Settings') || t.includes('Настройки') || t.includes('Налаштування') || t.includes('Баптаулар') ||
+                 al.includes('Settings') || al.includes('Настройки') ||
+                 title.includes('Settings') || title.includes('Настройки');
+        });
+
+        if (!settingsBtn || !settingsBtn.parentElement) return;
+
+        let container = document.getElementById('antigravity-token-widget');
+        if (!container) {
+          container = document.createElement('div');
+          container.id = 'antigravity-token-widget';
+          container.style.cssText = `
+            padding: 8px 10px !important;
+            margin: 4px 8px 8px 8px !important;
+            border-radius: 8px !important;
+            background: rgba(255, 255, 255, 0.035) !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+            font-size: 11px !important;
+            line-height: 1.35 !important;
+            color: rgba(255, 255, 255, 0.85) !important;
+            user-select: none !important;
+            cursor: default !important;
+            transition: border-color 0.2s ease, background 0.2s ease !important;
+            box-sizing: border-box !important;
+          `;
+
+          container.onmouseenter = () => {
+            container.style.borderColor = 'rgba(255, 255, 255, 0.18)';
+            container.style.background = 'rgba(255, 255, 255, 0.055)';
+          };
+          container.onmouseleave = () => {
+            container.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+            container.style.background = 'rgba(255, 255, 255, 0.035)';
+          };
+
+          settingsBtn.parentElement.insertBefore(container, settingsBtn);
+        }
+
+        const modelName = getActiveModelName();
+        const quotaData = await fetchOfficialQuotas();
+        const labels = HUD_LABELS[currentLang] || HUD_LABELS.ru;
+
+        let fiveHourPct = 100;
+        let fiveHourReset = '';
+        let weeklyPct = 100;
+        let weeklyReset = '';
+
+        if (quotaData && (quotaData.groups || quotaData.quotaGroups)) {
+          const groups = quotaData.groups || quotaData.quotaGroups || [];
+          const geminiGroup = groups.find(g => (g.displayName || '').includes('Gemini')) || groups[0];
+          if (geminiGroup && geminiGroup.buckets) {
+            const hBucket = geminiGroup.buckets.find(b => (b.window === '5h' || (b.bucketId || '').includes('5h')));
+            const wBucket = geminiGroup.buckets.find(b => (b.window === 'weekly' || (b.bucketId || '').includes('weekly')));
+
+            if (hBucket?.remaining?.value != null) {
+              fiveHourPct = Math.round(hBucket.remaining.value * 100);
+              fiveHourReset = formatResetTime(hBucket.resetTime?.seconds);
+            }
+            if (wBucket?.remaining?.value != null) {
+              weeklyPct = Math.round(wBucket.remaining.value * 100);
+              weeklyReset = formatResetTime(wBucket.resetTime?.seconds);
+            }
+          }
+        }
+
+        const tip5h = `${labels.tip5h}: ${fiveHourPct}%${fiveHourReset ? ` (${labels.reset} ${fiveHourReset})` : ''}`;
+        const tipWk = `${labels.tipWk}: ${weeklyPct}%${weeklyReset ? ` (${labels.reset} ${weeklyReset})` : ''}`;
+        container.title = `${tip5h}\n${tipWk}`;
+
+        const fiveHourColor = fiveHourPct > 35 ? '#10b981' : (fiveHourPct > 15 ? '#f59e0b' : '#ef4444');
+        const weeklyColor = weeklyPct > 35 ? '#3b82f6' : (weeklyPct > 15 ? '#f59e0b' : '#ef4444');
+
+        container.innerHTML = `
+          <div style="margin-bottom: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+              <span style="font-weight: 600; color: #f1f5f9; font-size: 10.5px;">${modelName}</span>
+              <span style="font-size: 9.5px; color: #10b981; font-weight: 600;">ACTIVE</span>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 5px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+              <span style="font-weight: 500; color: #94a3b8; font-size: 10px;">${labels.h5}</span>
+              <span style="font-size: 9.5px; color: ${fiveHourColor}; font-weight: 600;">${fiveHourPct}% ${fiveHourReset ? `<span style="font-weight: 400; color: #64748b;">(${fiveHourReset})</span>` : ''}</span>
+            </div>
+            <div style="background: rgba(255,255,255,0.08); height: 4px; border-radius: 2px; overflow: hidden;">
+              <div style="background: ${fiveHourColor}; width: ${Math.min(100, Math.max(0, fiveHourPct))}%; height: 100%; transition: width 0.3s ease;"></div>
+            </div>
+          </div>
+
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+              <span style="font-weight: 500; color: #94a3b8; font-size: 10px;">${labels.weekly}</span>
+              <span style="font-size: 9.5px; color: ${weeklyColor}; font-weight: 600;">${weeklyPct}% ${weeklyReset ? `<span style="font-weight: 400; color: #64748b;">(${weeklyReset})</span>` : ''}</span>
+            </div>
+            <div style="background: rgba(255,255,255,0.08); height: 4px; border-radius: 2px; overflow: hidden;">
+              <div style="background: ${weeklyColor}; width: ${Math.min(100, Math.max(0, weeklyPct))}%; height: 100%; transition: width 0.3s ease;"></div>
+            </div>
+          </div>
+        `;
+      } catch (hudErr) {
+        console.warn('[Tokens-HUD] Render error:', hudErr);
+      }
+    };
+
+    // Alt + L Shortcut
     window.addEventListener('keydown', function(e) {
       if (e.altKey && (e.key === 'l' || e.key === 'L' || e.key === 'д' || e.key === 'Д')) {
         e.preventDefault();
-        const langs = ['ru', 'uk', 'kk', 'be', 'uz', 'en'];
+        const langs = ['ru', 'en', 'de', 'es', 'fr', 'tr', 'uk', 'kk', 'be', 'uz'];
         const nextIdx = (langs.indexOf(currentLang) + 1) % langs.length;
         setLanguage(langs[nextIdx]);
       }
@@ -8472,6 +8741,9 @@
         if (document.body) {
           walkAndTranslate(document.body);
           injectLanguageSwitcher();
+          if (typeof window.__AGY_RENDER_TOKENS_HUD__ === 'function') {
+            window.__AGY_RENDER_TOKENS_HUD__();
+          }
         }
       } catch (e) {
         console.error('[Agent-UI-Localizer] Setup error:', e);
@@ -8488,14 +8760,20 @@
       if (document.body) {
         walkAndTranslate(document.body);
         injectLanguageSwitcher();
+        if (typeof window.__AGY_RENDER_TOKENS_HUD__ === 'function') {
+          window.__AGY_RENDER_TOKENS_HUD__();
+        }
       }
     });
 
     setInterval(function() {
       injectLanguageSwitcher();
-    }, 1200);
+      if (typeof window.__AGY_RENDER_TOKENS_HUD__ === 'function') {
+        window.__AGY_RENDER_TOKENS_HUD__();
+      }
+    }, 2000);
 
-    console.log('[Agent-UI-Localizer] Multi-language engine initialized successfully.');
+    console.log('[Agent-UI-Localizer] Multi-language engine & Native Tokens HUD initialized successfully.');
   } catch (globalErr) {
     console.error('[Agent-UI-Localizer] Fatal initialization error:', globalErr);
   }

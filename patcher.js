@@ -138,6 +138,22 @@ function preparePatch(appType = 'antigravity') {
       console.log(`[*] Защита от автоперезаписи: dist/updater.js пропатчен (autoInstallOnAppQuit = false, autoDownload = false)`);
     }
 
+    // 3.6. Patch dist/wsl.js to suppress wsl.exe interrogation on startup (completely removes 60s console window)
+    const wslPath = path.join(tempExtractDir, 'dist', 'wsl.js');
+    if (fs.existsSync(wslPath)) {
+      let wslCode = fs.readFileSync(wslPath, 'utf8');
+      wslCode = wslCode.replace(
+        /async function listWslDistros\(\)\s*\{[\s\S]*?\}/,
+        'async function listWslDistros() { return []; }'
+      );
+      wslCode = wslCode.replace(
+        /async function execWsl\(args\)\s*\{[\s\S]*?\n\}/,
+        'async function execWsl(args) { return ""; }'
+      );
+      fs.writeFileSync(wslPath, wslCode, 'utf8');
+      console.log(`[*] Блокировка WSL: dist/wsl.js пропатчен (вызовы wsl.exe отключены, консольное окно удалено)`);
+    }
+
     // 4. Repack to app.asar.patched
     console.log(`[*] Сборка пропатченного архива в: ${paths.patched}`);
     execSync(`npx asar pack "${tempExtractDir}" "${paths.patched}"`, { stdio: 'pipe' });
